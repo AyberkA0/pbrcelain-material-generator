@@ -1,0 +1,21 @@
+# GUI
+PyQt6>=6.6
+PyOpenGL>=3.1
+PyOpenGL_accelerate>=3.1; platform_system != "Darwin"
+
+# Deep learning / depth estimation
+# NOTE for Windows (CUDA GPU acceleration): install torch separately first:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+# NOTE for macOS (Apple Silicon MPS Metal GPU acceleration): standard pip includes MPS out of the box:
+#   pip install torch torchvision
+torch>=2.2
+torchvision>=0.17
+transformers>=4.56
+diffusers>=0.40
+accelerate>=0.30
+huggingface_hub>=0.24
+
+# Image / array processing
+numpy
+Pillow
+opencv-python-headless
