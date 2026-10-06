@@ -13,14 +13,16 @@ from typing import Optional
 
 import numpy as np
 from PIL import Image
-from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtCore import QSettings, QSize, QTimer, Qt
 from PyQt6.QtGui import QAction, QImage, QPixmap
 from PyQt6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QHBoxLayout,
     QLabel,
     QMainWindow,
     QMessageBox,
+    QMenu,
     QProgressBar,
     QPushButton,
     QSplitter,
@@ -56,8 +58,8 @@ from ui.panels.ao_panel import AOPanel
 from ui.preview_3d import Preview3DWidget
 from ui.preview_properties_panel import PreviewPropertiesPanel
 from ui.progress_dialog import OperationProgressDialog
-from ui import mac_window
-from ui.theme import IS_MAC, legacy_style
+from ui import mac_window, window_layout
+from ui.theme import IS_MAC, IS_WINDOWS, PLATFORM_THEME, legacy_style, pick, theme_changed
 from ui.tiled_preview_dialog import TiledPreviewDialog
 from ui.widgets import IMAGE_EXTENSIONS, ImageLabel, SlotButton
 from ui.workers import (
@@ -105,9 +107,14 @@ def _image_to_normal_array(image: Image.Image) -> np.ndarray:
     return np.asarray(image.convert("RGB"), dtype=np.float32) / 255.0
 
 
+RECENT_PROJECTS_KEY = "recentProjects"
+MAX_RECENT_PROJECTS = 8
+
+
 def _heading(text: str) -> str:
-    """Section heading text: ALL CAPS on Windows, macOS-style title case on Mac."""
-    return text.title() if IS_MAC else text
+    """Section heading text: title case in the macOS and Windows designs,
+    ALL CAPS in the legacy theme."""
+    return text if PLATFORM_THEME == "legacy" else text.title()
 
 
 class MainWindow(QMainWindow):
@@ -117,6 +124,7 @@ class MainWindow(QMainWindow):
         if IS_MAC:
             mac_window.hide_title_bar(self)
         self._initial_layout_done = False
+        self._taskbar_progress = None
         self.setAcceptDrops(True)
 
         self.project = ProjectData.new()
@@ -157,8 +165,11 @@ class MainWindow(QMainWindow):
         self._select_map_type(MapType.ALBEDO)
 
     def _build_toolbar(self) -> None:
-        if IS_MAC:
+        if PLATFORM_THEME == "mac":
             self._build_mac_menu()
+            return
+        if PLATFORM_THEME == "windows":
+            self._build_windows_commands()
             return
 
         toolbar = QToolBar("Main")
@@ -201,12 +212,90 @@ class MainWindow(QMainWindow):
         add("Save As…", self._save_project_as, "Ctrl+Shift+S")
         file_menu.addSeparator()
         add("Export Maps…", self._export_maps, "Ctrl+E")
+        file_menu.insertMenu(file_menu.actions()[2], self._build_recent_menu())
 
         quit_action = QAction("Quit PBRCELAIN", self)
         quit_action.setShortcut("Ctrl+Q")
         quit_action.setMenuRole(QAction.MenuRole.QuitRole)
         quit_action.triggered.connect(self.close)
         file_menu.addAction(quit_action)
+
+    def _build_windows_commands(self) -> None:
+        """Windows: a menu bar (File, with Open Recent and Exit) plus a Fluent
+        command bar with icon + label buttons for the common commands."""
+        from ui import windows_theme
+
+        file_menu = self.menuBar().addMenu("&File")
+        toolbar = QToolBar("Commands")
+        toolbar.setMovable(False)
+        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        toolbar.setIconSize(QSize(16, 16))
+        self.addToolBar(toolbar)
+        iconed: list[tuple[QAction, str]] = []
+
+        def add(text: str, handler, shortcut: str, icon: Optional[str] = None, short_label: Optional[str] = None) -> QAction:
+            action = QAction(text, self)
+            action.setShortcut(shortcut)
+            action.triggered.connect(handler)
+            file_menu.addAction(action)
+            if icon:
+                action.setIconText(short_label or text.replace("&", "").rstrip("…"))
+                toolbar.addAction(action)
+                iconed.append((action, icon))
+            return action
+
+        add("&New Project", self._new_project, "Ctrl+N", "new", "New")
+        add("&Open Project…", self._open_project, "Ctrl+O", "open", "Open")
+        file_menu.addMenu(self._build_recent_menu())
+        file_menu.addSeparator()
+        toolbar.addSeparator()
+        add("&Save", self._save_project, "Ctrl+S", "save")
+        add("Save &As…", self._save_project_as, "Ctrl+Shift+S", "save_as", "Save As")
+        file_menu.addSeparator()
+        toolbar.addSeparator()
+        add("&Export Maps…", self._export_maps, "Ctrl+E", "export", "Export Maps")
+        file_menu.addSeparator()
+        exit_action = QAction("E&xit", self)
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+        def refresh_icons() -> None:
+            for action, name in iconed:
+                action.setIcon(windows_theme.themed_icon(name))
+
+        refresh_icons()
+        theme_changed.connect(refresh_icons)
+
+    def _build_recent_menu(self) -> QMenu:
+        menu = QMenu("Open &Recent", self)
+
+        def populate() -> None:
+            menu.clear()
+            paths = [p for p in self._recent_projects() if os.path.isfile(p)]
+            for path in paths:
+                action = menu.addAction(os.path.basename(path))
+                action.setToolTip(path)
+                action.triggered.connect(lambda _checked=False, p=path: self._handle_dropped_project(p))
+            if not paths:
+                menu.addAction("No Recent Projects").setEnabled(False)
+            else:
+                menu.addSeparator()
+                menu.addAction("Clear Menu").triggered.connect(lambda: QSettings().remove(RECENT_PROJECTS_KEY))
+
+        menu.aboutToShow.connect(populate)
+        return menu
+
+    @staticmethod
+    def _recent_projects() -> list[str]:
+        value = QSettings().value(RECENT_PROJECTS_KEY, [])
+        if isinstance(value, str):
+            value = [value]
+        return [str(p) for p in (value or [])]
+
+    def _add_recent_project(self, path: str) -> None:
+        path = os.path.abspath(path)
+        paths = [p for p in self._recent_projects() if os.path.normcase(p) != os.path.normcase(path)]
+        QSettings().setValue(RECENT_PROJECTS_KEY, [path, *paths][:MAX_RECENT_PROJECTS])
 
     def _build_ui(self) -> None:
         central = QWidget()
@@ -222,12 +311,13 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self._build_preview_section())
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        if IS_MAC:
-            splitter.setChildrenCollapsible(False)
-            splitter.widget(0).setMinimumWidth(440)
-            splitter.setSizes([520, 920])  # refined to the screen in showEvent
-        else:
+        if PLATFORM_THEME == "legacy":
             splitter.setSizes([400, 1040])
+        else:
+            # Refined to the screen (or the last session) in showEvent.
+            splitter.setChildrenCollapsible(False)
+            splitter.widget(0).setMinimumWidth(pick(mac=440, windows=420))
+            splitter.setSizes([520, 920])
 
     def _build_project_section(self) -> QWidget:
         section = QWidget()
@@ -251,7 +341,7 @@ class MainWindow(QMainWindow):
         inspector = QWidget()
         inspector.setObjectName("MapInspector")
         inspector_layout = QVBoxLayout(inspector)
-        inspector_layout.setContentsMargins(*((14, 6, 14, 10) if IS_MAC else (10, 10, 10, 10)))
+        inspector_layout.setContentsMargins(*pick(mac=(14, 6, 14, 10), windows=(16, 6, 16, 12), legacy=(10, 10, 10, 10)))
         inspector_layout.addLayout(self._build_map_selector())
         layout.addWidget(inspector)
 
@@ -263,7 +353,7 @@ class MainWindow(QMainWindow):
         controls = QWidget()
         controls.setObjectName("MapInspector")
         controls_layout = QVBoxLayout(controls)
-        controls_layout.setContentsMargins(*((14, 10, 14, 12) if IS_MAC else (10, 8, 10, 10)))
+        controls_layout.setContentsMargins(*pick(mac=(14, 10, 14, 12), windows=(16, 10, 16, 14), legacy=(10, 8, 10, 10)))
         controls_layout.addLayout(self._build_generate_controls())
         layout.addWidget(controls)
         return section
@@ -457,9 +547,18 @@ class MainWindow(QMainWindow):
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
-        if IS_MAC and not self._initial_layout_done:
-            self._initial_layout_done = True
-            mac_window.fit_to_screen(self, self._main_splitter, self._preview_splitter)
+        if self._initial_layout_done or PLATFORM_THEME == "legacy":
+            return
+        self._initial_layout_done = True
+        if not window_layout.restore(self, self._main_splitter, self._preview_splitter):
+            window_layout.fit_to_screen(
+                self, self._main_splitter, self._preview_splitter,
+                sidebar_ratio=pick(mac=0.34, windows=0.32), sidebar_min=pick(mac=440, windows=420), sidebar_max=640,
+            )
+        if IS_WINDOWS:
+            from ui.win_window import TaskbarProgress
+
+            self._taskbar_progress = TaskbarProgress(self)
 
     def _select_map_type(self, map_type: MapType) -> None:
         self._invalidate_properties_preview()
@@ -1464,6 +1563,12 @@ class MainWindow(QMainWindow):
         self.height_panel.set_model_controls_enabled(not busy)
         self.height_panel.set_chunk_controls_enabled(not busy)
         self.progress_bar.setVisible(busy)
+        if self._taskbar_progress is not None:
+            self._taskbar_progress.set_busy(busy)
+        if not busy and not self.isActiveWindow():
+            # Long job finished while the user was elsewhere: flash the
+            # taskbar button (Windows) / bounce the Dock icon (macOS).
+            QApplication.alert(self)
 
     def _on_preview_settings_changed(self, settings: dict) -> None:
         self.preview_3d.set_preview_settings(settings)
@@ -1565,6 +1670,7 @@ class MainWindow(QMainWindow):
         project, source_images, cache_images, height_raw = loaded_result[0]
         self.project = project
         self.project_path = path
+        self._add_recent_project(path)
         self.source_images = source_images
         self.generated_images = cache_images
         self._draft_images.clear()
@@ -1664,6 +1770,7 @@ class MainWindow(QMainWindow):
         if saved[0]:
             self.project = project
             self.project_path = path
+            self._add_recent_project(path)
             self.dirty = False
             self._update_window_title()
             self.status_label.setText(f"Project saved to {fname}")
@@ -1745,4 +1852,6 @@ class MainWindow(QMainWindow):
                 thread.requestInterruption()
                 thread.quit()
                 thread.wait(5000)
+        if PLATFORM_THEME != "legacy":
+            window_layout.save(self, self._main_splitter, self._preview_splitter)
         super().closeEvent(event)

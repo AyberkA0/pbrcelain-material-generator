@@ -518,28 +518,57 @@ QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::su
 
 import sys as _sys
 
+from PyQt6.QtCore import QObject as _QObject, pyqtSignal as _pyqtSignal
+
 IS_MAC = _sys.platform == "darwin"
+IS_WINDOWS = _sys.platform == "win32"
+# macOS and Windows each get their own native-looking design
+# (ui/mac_theme.py, ui/windows_theme.py); other platforms keep the
+# stylesheet above.
+PLATFORM_THEME = "mac" if IS_MAC else ("windows" if IS_WINDOWS else "legacy")
+
+
+def pick(mac, windows, legacy=None):
+    """Per-platform value (e.g. margins), `legacy` defaulting to `windows`."""
+    if PLATFORM_THEME == "mac":
+        return mac
+    if PLATFORM_THEME == "windows":
+        return windows
+    return windows if legacy is None else legacy
+
+
+class _ThemeSignals(_QObject):
+    changed = _pyqtSignal()
+
+
+_signals = _ThemeSignals()
+# Emitted after the theme is (re)applied, e.g. when the system switches
+# between Light and Dark mode; for things the stylesheet can't reach
+# (tinted icons, the Windows title bar).
+theme_changed = _signals.changed
 
 
 def apply_app_theme(app) -> None:
-    """Windows/Linux: the stylesheet above, unchanged. macOS: see ui/mac_theme.py
-    (Fusion + macOS design language, follows the system Light/Dark appearance)."""
-    if IS_MAC:
+    if PLATFORM_THEME == "mac":
         from ui import mac_theme
 
         mac_theme.apply(app)
+    elif PLATFORM_THEME == "windows":
+        from ui import windows_theme
+
+        windows_theme.apply(app)
     else:
         app.setStyleSheet(APP_STYLESHEET)
 
 
-def legacy_style(widget, css: str, mac_role: str | None = None) -> None:
-    """Apply a widget's original inline stylesheet on Windows/Linux. On macOS
-    the theme stylesheet styles it instead (via `mac_role`, if given), so it
-    follows the system Light/Dark appearance."""
-    if IS_MAC:
-        if mac_role is not None:
-            widget.setProperty("role", mac_role)
-            widget.style().unpolish(widget)
-            widget.style().polish(widget)
-    else:
+def legacy_style(widget, css: str, role: str | None = None) -> None:
+    """Style a widget that used to carry an inline stylesheet. The legacy
+    theme still applies `css`; the macOS and Windows themes style it from
+    their stylesheet instead (via `role`, if given), so it follows the
+    system Light/Dark appearance."""
+    if PLATFORM_THEME == "legacy":
         widget.setStyleSheet(css)
+    elif role is not None:
+        widget.setProperty("role", role)
+        widget.style().unpolish(widget)
+        widget.style().polish(widget)

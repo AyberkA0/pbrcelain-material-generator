@@ -13,7 +13,7 @@ from __future__ import annotations
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap
 
-from ui.theme import IS_MAC, legacy_style
+from ui.theme import IS_MAC, legacy_style, pick
 from PyQt6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -241,7 +241,8 @@ class CurveEditorWidget(QWidget):
         painter.setPen(ref_pen)
         painter.drawLine(self._data_to_pixel(0.0, 1.0), self._data_to_pixel(1.0, 1.0))
 
-        label_font = QFont(".AppleSystemUIFont" if IS_MAC else "Segoe UI", 10 if IS_MAC else 8)
+        label_font = QFont(self.font())
+        label_font.setPointSize(pick(mac=10, windows=8, legacy=8))
         painter.setFont(label_font)
         painter.setPen(QColor("#71717a"))
 

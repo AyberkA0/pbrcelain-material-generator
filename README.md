@@ -126,17 +126,17 @@ venv\Scripts\python main.py
 Always start the app with the venv's Python so the correct PyTorch build is used.
 A project can be opened directly: `venv\Scripts\python main.py my_material.pcln`
 
-### Open `.pcln` files by double-clicking (Windows)
+### Start menu shortcut and `.pcln` association (Windows)
 
 ```bash
 venv\Scripts\python register_file_association.py
 ```
 
 This associates `.pcln` with PBRCELAIN for the current user only
-(`HKEY_CURRENT_USER`, no admin rights needed). The app starts without a console
-window and writes its output to `%LOCALAPPDATA%\PBRCELAIN\pbrcelain.log`. Re-run
-the command if you move the project folder; remove the association with
-`--unregister`.
+(`HKEY_CURRENT_USER`, no admin rights needed) and adds a PBRCELAIN shortcut to
+the Start menu. The app starts without a console window and writes its output to
+`%LOCALAPPDATA%\PBRCELAIN\pbrcelain.log`. Re-run the command if you move the
+project folder; remove the association and the shortcut with `--unregister`.
 
 ### macOS app bundle and `.pcln` association
 
@@ -152,10 +152,19 @@ Finder (or dropping one on the Dock icon) opens it. Output goes to
 project folder or recreate the venv; remove the app with `--uninstall`
 (`--dest DIR` installs elsewhere, e.g. `/Applications`).
 
-On macOS the interface follows the system Light/Dark appearance and accent
-color. Trackpads are supported in the 3D viewport, tiled preview and
-imperfection painter: pinch to zoom, swipe with two fingers to orbit (3D) or pan,
-and double-tap with two fingers to reset the view.
+### Platform look and input
+
+On macOS and Windows the interface follows the system Light/Dark appearance and
+accent color, in each platform's own design language: macOS controls with the
+menu bar at the top of the screen, and Windows 11 (Fluent) controls with a
+themed title bar, menu bar and command bar. Window size and section split are
+remembered between sessions, and **File → Open Recent** lists recent projects.
+
+Trackpads work in the 3D viewport, tiled preview and imperfection painter:
+pinch to zoom and swipe with two fingers to orbit (3D) or pan. The imperfection
+painter also takes pen input (Wacom, Surface Pen): pressure sets brush size and
+flow, and the pen's eraser end erases. On Windows, long jobs show progress on
+the taskbar button.
 
 ### App icon
 
@@ -170,6 +179,7 @@ Work is saved as a `.pcln` project: a zip archive holding the source images,
 generated maps, the raw depth data and every parameter. Reopening a project
 restores everything without re-running the depth model.
 
-Toolbar: **New Project / Open Project / Save / Save As / Export Maps / Exit**.
+Commands (File menu, plus the toolbar on Windows): **New Project / Open Project /
+Open Recent / Save / Save As / Export Maps**.
 **Export Maps** writes every available map to a folder (PNG, or EXR for 32-bit
 height maps).

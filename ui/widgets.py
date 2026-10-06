@@ -5,7 +5,7 @@ from PyQt6.QtCore import QEvent, Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPixmap
 from PyQt6.QtWidgets import QLabel, QPushButton
 
-from ui.theme import IS_MAC
+from ui.theme import PLATFORM_THEME
 
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp")
@@ -42,7 +42,7 @@ class ImageLabel(QLabel):
         self._placeholder_text = placeholder_text
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumSize(200, 200)
-        if not IS_MAC:  # macOS: styled by the theme (follows Light/Dark)
+        if PLATFORM_THEME == "legacy":  # macOS/Windows themes style ImageLabel themselves
             self.setStyleSheet("background-color: #1a1a1a; color: #8a8a8a; border: 1px solid #202020; border-radius: 2px;")
         self.setText(placeholder_text)
         self.setAcceptDrops(True)

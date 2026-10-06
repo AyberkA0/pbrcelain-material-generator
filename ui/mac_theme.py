@@ -11,15 +11,18 @@ The theme follows the system appearance automatically: it is rebuilt from
 the light or dark token set whenever macOS switches between Light and Dark
 mode.
 
-Windows/Linux never import this module; they keep `theme.APP_STYLESHEET`.
+Windows uses its own design (ui/windows_theme.py); this module is macOS-only.
 """
 from __future__ import annotations
 
 import os
 
-from PyQt6.QtCore import QEvent, QObject, Qt
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QFontDatabase, QGuiApplication, QPalette
-from PyQt6.QtWidgets import QApplication, QComboBox
+from PyQt6.QtWidgets import QApplication
+
+from ui import combo_popup
+from ui.theme import theme_changed
 
 _ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "mac").replace("\\", "/")
 
@@ -673,38 +676,16 @@ QWidget#StatusBarPanel {{
 """
 
 
-def _fit_popup_to_contents(combo: QComboBox) -> None:
-    """Let the drop-down list be wider than its (possibly narrow) combo box so
-    long entries are never cut off."""
-    view = combo.view()
-    fm = view.fontMetrics()
-    widest = max((fm.horizontalAdvance(combo.itemText(i)) for i in range(combo.count())), default=0)
-    icon_w = combo.iconSize().width() + 6 if any(not combo.itemIcon(i).isNull() for i in range(combo.count())) else 0
-    scrollbar = view.verticalScrollBar().sizeHint().width() if combo.count() > combo.maxVisibleItems() else 0
-    # Item padding (QSS) + popup frame/padding + a little breathing room.
-    view.setMinimumWidth(max(combo.width(), widest + icon_w + scrollbar + 40))
-
-
-class _AppEventFilter(QObject):
-    """App-wide hooks: widen combo popups as they open."""
-
-    def eventFilter(self, obj, event):
-        if event.type() == QEvent.Type.MouseButtonPress or event.type() == QEvent.Type.KeyPress:
-            if isinstance(obj, QComboBox):
-                _fit_popup_to_contents(obj)
-        return False
-
-
 _installed = False
-_event_filter: _AppEventFilter | None = None
 
 
 def _apply_current(app: QApplication) -> None:
     app.setStyleSheet(build_stylesheet(tokens(), accent_color()))
+    theme_changed.emit()
 
 
 def apply(app: QApplication) -> None:
-    global _installed, _event_filter
+    global _installed
     app.setStyle("Fusion")
 
     font = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
@@ -716,5 +697,4 @@ def apply(app: QApplication) -> None:
     if not _installed:
         _installed = True
         app.styleHints().colorSchemeChanged.connect(lambda _scheme: _apply_current(app))
-        _event_filter = _AppEventFilter(app)
-        app.installEventFilter(_event_filter)
+        combo_popup.install(app)

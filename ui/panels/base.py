@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ui.theme import IS_MAC
+from ui.theme import IS_MAC, PLATFORM_THEME, pick
 
 COLUMNS = 3
 
@@ -42,7 +42,7 @@ class PropertyPanel(QWidget):
         self._grid = QGridLayout(content)
         self._grid.setHorizontalSpacing(14)
         self._grid.setVerticalSpacing(12)
-        self._grid.setContentsMargins(*((14, 12, 14, 14) if IS_MAC else (10, 10, 10, 10)))
+        self._grid.setContentsMargins(*pick(mac=(14, 12, 14, 14), windows=(16, 12, 16, 16), legacy=(10, 10, 10, 10)))
         for c in range(COLUMNS):
             self._grid.setColumnStretch(c, 1)
 
@@ -59,9 +59,11 @@ class PropertyPanel(QWidget):
         label.setProperty("role", "dim")
         v.addWidget(label)
         v.addWidget(widget)
-        if IS_MAC:
-            # macOS fonts are wider; let combos shrink instead of pushing the
-            # 3-column grid wider than the panel (which clips the last column).
+        if PLATFORM_THEME != "legacy":
+            # The system UI fonts are wider than the legacy 11px; let combos
+            # shrink instead of pushing the 3-column grid wider than the panel
+            # (which clips the last column). Their drop-down lists still open
+            # at full width (ui/combo_popup.py).
             combos = widget.findChildren(QComboBox)
             if isinstance(widget, QComboBox):
                 combos.append(widget)

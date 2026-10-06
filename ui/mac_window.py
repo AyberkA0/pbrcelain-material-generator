@@ -8,7 +8,7 @@ title-bar row become move handles via `install_drag_area`.
 from __future__ import annotations
 
 from PyQt6.QtCore import QEvent, QObject, QPoint, Qt
-from PyQt6.QtWidgets import QMainWindow, QSplitter, QWidget
+from PyQt6.QtWidgets import QMainWindow, QWidget
 
 TITLE_BAR_HEIGHT = 28
 
@@ -52,24 +52,3 @@ class _DragArea(QObject):
 
 def install_drag_area(widget: QWidget) -> None:
     widget.installEventFilter(_DragArea(widget))
-
-
-def fit_to_screen(window: QMainWindow, sidebar_splitter: QSplitter, preview_splitter: QSplitter) -> None:
-    """Size the window and its sections relative to the screen rather than
-    fixed pixels, so small and large displays both get a sensible split."""
-    screen = window.screen()
-    if screen is None:
-        return
-    avail = screen.availableGeometry()
-    w = min(int(avail.width() * 0.94), 2200)
-    h = min(int(avail.height() * 0.94), 1400)
-    window.setGeometry(avail.x() + (avail.width() - w) // 2, avail.y() + (avail.height() - h) // 2, w, h)
-
-    # Sidebar ~1/3 of the width (room for the 3-column settings grid).
-    side = max(440, min(640, int(w * 0.34)))
-    sidebar_splitter.setSizes([side, w - side])
-
-    # Viewport ~60% of the height, View Options the remaining ~40%.
-    content_h = h - TITLE_BAR_HEIGHT
-    view_h = int(content_h * 0.6)
-    preview_splitter.setSizes([view_h, content_h - view_h])

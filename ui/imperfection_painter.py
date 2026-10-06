@@ -7,13 +7,14 @@ from __future__ import annotations
 
 from typing import Literal
 
-from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
     QColor,
     QImage,
     QKeySequence,
     QPainter,
+    QPointingDevice,
     QPen,
     QPixmap,
     QRadialGradient,
@@ -37,7 +38,7 @@ from PIL import Image
 import numpy as np
 
 from ui import trackpad
-from ui.theme import IS_MAC, legacy_style
+from ui.theme import legacy_style, pick
 
 # Scoped to the card itself (QLabel is a QFrame subclass, so an unscoped rule
 # would also box every label inside the card). macOS styles it from the theme.
@@ -73,6 +74,8 @@ class ImperfectionCanvasWidget(QWidget):
         self.brush_size = 42
         self.brush_hardness = 0.2
         self.brush_flow = 0.5
+        self._pressure = 1.0       # pen pressure of the current stroke (1.0 for the mouse)
+        self._pen_eraser = False   # stroke made with the pen's eraser end
         self.target_roughness = 1.0
 
         self._zoom = 1.0
@@ -223,13 +226,15 @@ class ImperfectionCanvasWidget(QWidget):
         )
 
     def _paint_stamp(self, center: QPointF, painter: QPainter) -> None:
-        """Stamp a soft radial gradient brush stroke."""
-        radius = max(2.0, self.brush_size / 2.0)
+        """Stamp a soft radial gradient brush stroke. With a pen, pressure
+        scales the size (down to 30%) and the flow."""
+        radius = max(2.0, self.brush_size / 2.0 * (0.3 + 0.7 * self._pressure))
+        flow = self.brush_flow * self._pressure
         grad = QRadialGradient(center, radius)
 
-        if self.brush_mode == "eraser":
+        if self.brush_mode == "eraser" or self._pen_eraser:
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationOut)
-            alpha_int = int(round(self.brush_flow * 255))
+            alpha_int = int(round(flow * 255))
             grad.setColorAt(0.0, QColor(0, 0, 0, alpha_int))
             hard_stop = min(max(self.brush_hardness, 0.01), 0.99)
             grad.setColorAt(hard_stop, QColor(0, 0, 0, alpha_int))
@@ -237,7 +242,7 @@ class ImperfectionCanvasWidget(QWidget):
         else:
             painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceOver)
             target_val = int(round(self.target_roughness * 255))
-            alpha_int = int(round(self.brush_flow * 255))
+            alpha_int = int(round(flow * 255))
             color = QColor(target_val, 0, 0, alpha_int)
             grad.setColorAt(0.0, color)
             hard_stop = min(max(self.brush_hardness, 0.01), 0.99)
@@ -327,15 +332,51 @@ class ImperfectionCanvasWidget(QWidget):
             return
 
         if event.button() == Qt.MouseButton.LeftButton:
-            c_pos = self._widget_to_canvas(pos)
-            self._last_canvas_pos = c_pos
-            self._is_painting = True
-            self._save_undo_state()
-            painter = QPainter(self._paint_image)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            self._paint_stamp(c_pos, painter)
-            painter.end()
+            self._begin_stroke(pos)
+
+    def _begin_stroke(self, pos: QPointF) -> None:
+        c_pos = self._widget_to_canvas(pos)
+        self._last_canvas_pos = c_pos
+        self._is_painting = True
+        self._save_undo_state()
+        painter = QPainter(self._paint_image)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self._paint_stamp(c_pos, painter)
+        painter.end()
+        self.update()
+
+    def _continue_stroke(self, pos: QPointF) -> None:
+        curr_canvas_pos = self._widget_to_canvas(pos)
+        self._apply_brush_stroke(self._last_canvas_pos, curr_canvas_pos)
+        self._last_canvas_pos = curr_canvas_pos
+        self.update()
+
+    def _end_stroke(self) -> None:
+        self._is_painting = False
+        self._last_canvas_pos = None
+        self.maskChanged.emit()
+        self.update()
+
+    def tabletEvent(self, event) -> None:
+        """Pen input (Wacom, Surface, Apple Pencil via Sidecar): pressure
+        drives brush size and flow, and the pen's eraser end erases. Accepting
+        the event stops Qt from also sending the equivalent mouse events."""
+        etype = event.type()
+        pos = event.position()
+        self._cursor_canvas_pos = self._widget_to_canvas(pos)
+        self._pressure = max(0.05, min(1.0, event.pressure()))
+        if etype == QEvent.Type.TabletPress and event.button() == Qt.MouseButton.LeftButton:
+            self._pen_eraser = event.pointerType() == QPointingDevice.PointerType.Eraser
+            self._begin_stroke(pos)
+        elif etype == QEvent.Type.TabletMove and self._is_painting and self._last_canvas_pos is not None:
+            self._continue_stroke(pos)
+        elif etype == QEvent.Type.TabletRelease and self._is_painting:
+            self._end_stroke()
+            self._pressure = 1.0
+            self._pen_eraser = False
+        else:
             self.update()
+        event.accept()
 
     def mouseMoveEvent(self, event) -> None:
         pos = event.position()
@@ -349,10 +390,7 @@ class ImperfectionCanvasWidget(QWidget):
             return
 
         if self._is_painting and self._last_canvas_pos is not None:
-            curr_canvas_pos = self._widget_to_canvas(pos)
-            self._apply_brush_stroke(self._last_canvas_pos, curr_canvas_pos)
-            self._last_canvas_pos = curr_canvas_pos
-            self.update()
+            self._continue_stroke(pos)
             return
 
         self._last_mouse_pos = pos
@@ -364,10 +402,7 @@ class ImperfectionCanvasWidget(QWidget):
             self.setCursor(Qt.CursorShape.ArrowCursor)
 
         if event.button() == Qt.MouseButton.LeftButton and self._is_painting:
-            self._is_painting = False
-            self._last_canvas_pos = None
-            self.maskChanged.emit()
-            self.update()
+            self._end_stroke()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         if trackpad.is_trackpad_scroll(event):
@@ -661,11 +696,13 @@ class ImperfectionPainterDialog(QDialog):
 
         canvas_vbox.addWidget(self.canvas, 1)
 
-        status_bar = QLabel(
-            "💡 Pinch or Wheel: Zoom | Two-Finger Swipe, Middle-Click or ⌥-Drag: Pan | Click: Paint smooth strokes"
-            if IS_MAC else
-            "💡 Wheel: Zoom | Middle-Click or Alt+Drag: Pan | Left-Click: Paint smooth strokes"
-        )
+        status_bar = QLabel(pick(
+            mac="💡 Pinch or Wheel: Zoom | Two-Finger Swipe, Middle-Click or ⌥-Drag: Pan | "
+                "Click or Pen: Paint (pen pressure sets size and flow)",
+            windows="💡 Pinch or Wheel: Zoom | Two-Finger Swipe, Middle-Click or Alt+Drag: Pan | "
+                    "Click or Pen: Paint (pen pressure sets size and flow)",
+            legacy="💡 Wheel: Zoom | Middle-Click or Alt+Drag: Pan | Left-Click: Paint smooth strokes",
+        ))
         legacy_style(status_bar, "color: #64748b; font-size: 10px;", "hint")
         canvas_vbox.addWidget(status_bar)
 

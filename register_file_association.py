@@ -1,4 +1,5 @@
-"""Associate .pcln project files with PBRCELAIN on Windows (current user only).
+"""Associate .pcln project files with PBRCELAIN on Windows (current user only)
+and add a PBRCELAIN shortcut to the Start menu.
 
 Double-clicking a .pcln file then launches this project's venv interpreter
 (pythonw.exe, no console window) with main.py and the file path.
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+import subprocess
 import sys
 
 if sys.platform != "win32":
@@ -29,6 +31,9 @@ CLASSES_ROOT = r"Software\Classes"
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 MAIN_SCRIPT = os.path.join(PROJECT_DIR, "main.py")
 ICON_FILE = os.path.join(PROJECT_DIR, "ui", "assets", "app_icon.ico")
+START_MENU_SHORTCUT = os.path.join(
+    os.environ.get("APPDATA", ""), "Microsoft", "Windows", "Start Menu", "Programs", "PBRCELAIN.lnk"
+)
 
 
 def _find_pythonw() -> str:
@@ -68,6 +73,23 @@ def _notify_shell() -> None:
     ctypes.windll.shell32.SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None)
 
 
+def _create_start_menu_shortcut(pythonw: str) -> None:
+    # Values go through environment variables so paths with spaces or
+    # quotes need no PowerShell escaping.
+    script = (
+        "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:PBR_LNK);"
+        "$s.TargetPath = $env:PBR_TARGET; $s.Arguments = $env:PBR_ARGS;"
+        "$s.WorkingDirectory = $env:PBR_DIR; $s.IconLocation = $env:PBR_ICON;"
+        "$s.Description = 'PBRCELAIN material generator'; $s.Save()"
+    )
+    env = dict(
+        os.environ,
+        PBR_LNK=START_MENU_SHORTCUT, PBR_TARGET=pythonw, PBR_ARGS=f'"{MAIN_SCRIPT}"',
+        PBR_DIR=PROJECT_DIR, PBR_ICON=f"{ICON_FILE},0",
+    )
+    subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script], env=env, check=True)
+
+
 def register() -> None:
     pythonw = _find_pythonw()
     command = f'"{pythonw}" "{MAIN_SCRIPT}" "%1"'
@@ -81,6 +103,11 @@ def register() -> None:
     _set_value(rf"{PROG_ID}\shell\open\command", command)
     _notify_shell()
     print(f"Registered {EXTENSION} -> {command}")
+    try:
+        _create_start_menu_shortcut(pythonw)
+        print(f"Added Start menu shortcut: {START_MENU_SHORTCUT}")
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(f"Could not create the Start menu shortcut: {exc}")
 
 
 def unregister() -> None:
@@ -88,6 +115,9 @@ def unregister() -> None:
     _delete_tree(EXTENSION)
     _notify_shell()
     print(f"Removed {EXTENSION} association.")
+    if os.path.isfile(START_MENU_SHORTCUT):
+        os.remove(START_MENU_SHORTCUT)
+        print("Removed Start menu shortcut.")
 
 
 if __name__ == "__main__":
