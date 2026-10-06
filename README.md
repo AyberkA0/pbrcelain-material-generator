@@ -138,6 +138,32 @@ window and writes its output to `%LOCALAPPDATA%\PBRCELAIN\pbrcelain.log`. Re-run
 the command if you move the project folder; remove the association with
 `--unregister`.
 
+### macOS app bundle and `.pcln` association
+
+```bash
+venv/bin/python build_macos_app.py
+```
+
+This installs a `PBRCELAIN.app` launcher in `~/Applications` that runs this
+project folder with the venv's Python. The app shows up under its own name and
+icon in the Dock, Launchpad and Spotlight, and double-clicking a `.pcln` file in
+Finder (or dropping one on the Dock icon) opens it. Output goes to
+`~/Library/Logs/PBRCELAIN/pbrcelain.log`. Re-run the command if you move the
+project folder or recreate the venv; remove the app with `--uninstall`
+(`--dest DIR` installs elsewhere, e.g. `/Applications`).
+
+On macOS the interface follows the system Light/Dark appearance and accent
+color. Trackpads are supported in the 3D viewport, tiled preview and
+imperfection painter: pinch to zoom, swipe with two fingers to orbit (3D) or pan,
+and double-tap with two fingers to reset the view.
+
+### App icon
+
+The icon artwork lives in `ui/assets/app_icon_source.jpg`. After replacing it,
+run `python make_icons.py` to regenerate the squircle icons (`app_icon.png`,
+`app_icon.ico` for Windows, and the macOS version on Apple's icon grid), then
+re-run `build_macos_app.py` on macOS.
+
 ## Project files (`.pcln`)
 
 Work is saved as a `.pcln` project: a zip archive holding the source images,

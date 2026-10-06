@@ -24,6 +24,36 @@ from PyQt6.QtCore import QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QSurfaceFormat
 from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 
+from ui import trackpad
+
+# Default environment when no HDRI is selected: a procedural sky in the style
+# of Unity's default skybox (blue zenith, bright horizon, grey ground and a
+# sun disk aligned with the key light). It is drawn as the viewport backdrop
+# and also lights the object (hemispherical ambient + sky reflections), so
+# materials read well out of the box instead of sitting in near-black ambient.
+SKY_GLSL = """
+const vec3 SKY_ZENITH = vec3(0.32, 0.47, 0.72);
+const vec3 SKY_HORIZON = vec3(0.80, 0.82, 0.86);
+const vec3 SKY_GROUND = vec3(0.37, 0.35, 0.34);
+
+// Sky radiance in display (sRGB-ish) space. `sunDir` points towards the sun.
+vec3 proceduralSky(vec3 d, vec3 sunDir, bool withSunDisk) {
+    float y = d.y;
+    vec3 c;
+    if (y >= 0.0) {
+        c = mix(SKY_HORIZON, SKY_ZENITH, pow(clamp(y, 0.0, 1.0), 0.5));
+    } else {
+        c = mix(SKY_HORIZON * 0.85, SKY_GROUND, smoothstep(0.0, 0.12, -y));
+    }
+    float s = max(dot(d, sunDir), 0.0);
+    c += vec3(1.0, 0.92, 0.78) * (pow(s, 48.0) * 0.35);
+    if (withSunDisk && y > -0.02) {
+        c += vec3(1.0, 0.96, 0.88) * smoothstep(0.9993, 0.9997, s) * 1.5;
+    }
+    return c;
+}
+"""
+
 VERTEX_SHADER = """
 #version 330 core
 layout(location = 0) in vec3 inPosition;
@@ -80,8 +110,18 @@ uniform bool uHasAO;
 uniform bool uPOMEnabled;
 uniform float uPOMHeightScale;
 uniform int uPOMMaxLayers;
+uniform bool uSkyAmbient;
 
 const float PI = 3.14159265359;
+""" + SKY_GLSL + """
+// Diffuse irradiance of the procedural sky for a surface facing `n`
+// (linear space): ground below, sky above, sun glow towards the light.
+vec3 skyIrradiance(vec3 n, vec3 sunDir) {
+    vec3 skyAvg = pow(mix(SKY_HORIZON, SKY_ZENITH, 0.55), vec3(2.2));
+    vec3 ground = pow(SKY_GROUND, vec3(2.2));
+    vec3 c = mix(ground, skyAvg, clamp(n.y * 0.5 + 0.5, 0.0, 1.0));
+    return c + vec3(1.0, 0.92, 0.78) * 0.08 * max(dot(n, sunDir), 0.0);
+}
 
 vec2 parallaxOcclusionMapping(vec2 texCoords, vec3 viewDirTS) {
     float maxLayers = float(max(uPOMMaxLayers, 4));
@@ -182,7 +222,19 @@ void main() {
 
     float ao = uHasAO ? texture(uAOTex, uv).r : 1.0;
     vec3 color = (diffuse + specular) * uLightIntensity * NdotL;
-    color += albedo * uAmbientColor * uEnvIntensity * ao;
+    if (uSkyAmbient) {
+        // Image-based lighting from the procedural sky: diffuse irradiance
+        // plus a reflection of the sky that blurs towards the irradiance as
+        // roughness rises, weighted by a roughness-aware Fresnel term.
+        vec3 Fenv = F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - NdotV, 5.0);
+        vec3 R = reflect(-V, N);
+        vec3 reflected = pow(proceduralSky(R, L, false), vec3(2.2));
+        vec3 envSpec = mix(reflected, skyIrradiance(R, L), roughness);
+        vec3 envDiffuse = (1.0 - Fenv) * albedo * skyIrradiance(N, L);
+        color += (envDiffuse + envSpec * Fenv) * uEnvIntensity * ao;
+    } else {
+        color += albedo * uAmbientColor * uEnvIntensity * ao;
+    }
     color *= uExposure;
 
     color = color / (color + vec3(1.0));
@@ -230,8 +282,10 @@ uniform sampler2D uHdriTex;
 uniform bool uHasHdri;
 uniform vec3 uFlatColor;
 uniform float uBrightness;
+uniform vec3 uSunDir;
 
 const float PI = 3.14159265359;
+""" + SKY_GLSL + """
 
 void main() {
     vec3 color;
@@ -245,7 +299,12 @@ void main() {
         float v = 0.5 - asin(clamp(dir.y, -1.0, 1.0)) / PI;
         color = texture(uHdriTex, vec2(u, v)).rgb;
     } else {
-        color = uFlatColor;
+        vec3 dir = normalize(
+            uCamForward
+            + vClip.x * uAspect * uTanHalfFov * uCamRight
+            + vClip.y * uTanHalfFov * uCamUp
+        );
+        color = proceduralSky(dir, uSunDir, true);
     }
     outColor = vec4(color * uBrightness, 1.0);
 }
@@ -376,7 +435,7 @@ class Preview3DWidget(QOpenGLWidget):
             "pivot_y": 0.0,
             "pivot_z": 0.0,
             "light_intensity": 1.2,
-            "env_intensity": 0.6,
+            "env_intensity": 1.0,
             "exposure": 1.0,
             "show_grid": False,
             "auto_rotate": True,
@@ -500,6 +559,10 @@ class Preview3DWidget(QOpenGLWidget):
             self._hdri_pending_upload = True
 
     def initializeGL(self) -> None:
+        # macOS: Qt's context setup can leave a stale GL_INVALID_ENUM in the
+        # error queue, which PyOpenGL would attribute to our first call.
+        while gl.glGetError() != gl.GL_NO_ERROR:
+            pass
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_MULTISAMPLE)
 
@@ -511,14 +574,14 @@ class Preview3DWidget(QOpenGLWidget):
             "uHasAlbedo", "uHasNormal", "uHasRoughnessTex",
             "uHasHeight", "uPOMEnabled", "uPOMHeightScale", "uPOMMaxLayers",
             "uAlbedoTex", "uNormalTex", "uRoughnessTex", "uHeightTex", "uUVScale",
-            "uAOTex", "uHasAO",
+            "uAOTex", "uHasAO", "uSkyAmbient",
         ])
         self._grid_uniforms = self._cache_uniform_locations(self._grid_program, ["uView", "uProj", "uColor"])
 
         self._bg_program = self._build_program(BACKGROUND_VERTEX_SHADER, BACKGROUND_FRAGMENT_SHADER)
         self._bg_uniforms = self._cache_uniform_locations(self._bg_program, [
             "uCamForward", "uCamRight", "uCamUp", "uTanHalfFov", "uAspect",
-            "uHdriTex", "uHasHdri", "uFlatColor", "uBrightness",
+            "uHdriTex", "uHasHdri", "uFlatColor", "uBrightness", "uSunDir",
         ])
         bg_verts = _build_fullscreen_triangle()
         self._bg_vao = gl.glGenVertexArrays(1)
@@ -726,6 +789,7 @@ class Preview3DWidget(QOpenGLWidget):
         gl.glUniform1i(bu["uHasHdri"], 1 if self._hdri_image is not None else 0)
         gl.glUniform3f(bu["uFlatColor"], *self._background_color)
         gl.glUniform1f(bu["uBrightness"], bg_brightness)
+        gl.glUniform3f(bu["uSunDir"], *light_source_dir)
         gl.glActiveTexture(gl.GL_TEXTURE4)
         gl.glBindTexture(gl.GL_TEXTURE_2D, self._hdri_tex)
         gl.glUniform1i(bu["uHdriTex"], 4)
@@ -742,9 +806,10 @@ class Preview3DWidget(QOpenGLWidget):
         gl.glUniform3f(u["uCamPos"], *cam_pos.tolist())
         gl.glUniform3f(u["uLightDir"], *light_dir)
         gl.glUniform1f(u["uLightIntensity"], self._settings.get("light_intensity", 1.2))
-        gl.glUniform1f(u["uEnvIntensity"], self._settings.get("env_intensity", 0.6))
+        gl.glUniform1f(u["uEnvIntensity"], self._settings.get("env_intensity", 1.0))
         gl.glUniform1f(u["uExposure"], self._settings.get("exposure", 1.0))
         gl.glUniform3f(u["uAmbientColor"], *self._ambient_color)
+        gl.glUniform1i(u["uSkyAmbient"], 1 if self._hdri_image is None else 0)
         gl.glUniform1f(u["uRoughnessValue"], self._roughness_value)
         gl.glUniform1i(u["uHasAlbedo"], 1 if self._albedo_image is not None else 0)
         gl.glUniform1i(u["uHasNormal"], 1 if self._normal_image is not None else 0)
@@ -805,11 +870,12 @@ class Preview3DWidget(QOpenGLWidget):
         dx = pos.x() - self._last_mouse_pos.x()
         dy = pos.y() - self._last_mouse_pos.y()
         self._last_mouse_pos = pos
+        self._apply_drag(dx, dy, event.modifiers())
 
-        is_pan = bool(
-            (event.modifiers() & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier))
-            and (event.buttons() & Qt.MouseButton.LeftButton)
-        )
+    def _apply_drag(self, dx: float, dy: float, modifiers) -> None:
+        """Orbit (plain), move the light (Shift) or pan the pivot (Ctrl/Cmd)
+        by a drag of (dx, dy) pixels — from the mouse or a trackpad swipe."""
+        is_pan = bool(modifiers & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier))
 
         if is_pan:
             distance = self._settings.get("distance", 3.5)
@@ -844,7 +910,7 @@ class Preview3DWidget(QOpenGLWidget):
             self._settings["pivot_z"] = new_pz
             self.pivotChanged.emit(new_px, new_py, new_pz)
             self.update()
-        elif event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+        elif modifiers & Qt.KeyboardModifier.ShiftModifier:
             new_az = (self._settings.get("light_azimuth", 45.0) + dx * 0.5) % 360.0
             new_el = max(-90.0, min(90.0, self._settings.get("light_elevation", 50.0) - dy * 0.5))
             self._settings["light_azimuth"] = new_az
@@ -861,13 +927,31 @@ class Preview3DWidget(QOpenGLWidget):
         self._is_dragging = False
 
     def wheelEvent(self, event) -> None:
+        if trackpad.is_trackpad_scroll(event):
+            # Two-finger swipe orbits (Shift: light, Cmd: pan), like a drag.
+            d = trackpad.scroll_delta(event)
+            self._apply_drag(d.x(), d.y(), event.modifiers())
+            return
         delta = event.angleDelta().y() / 120.0
         current_distance = self._settings.get("distance", 3.5)
         step = 0.05 if current_distance <= 1.0 else 0.2
-        new_distance = max(0.01, min(20.0, current_distance - delta * step))
+        self._set_distance(current_distance - delta * step)
+
+    def _set_distance(self, distance: float) -> None:
+        new_distance = max(0.01, min(20.0, distance))
         self._settings["distance"] = new_distance
         self.distanceChanged.emit(new_distance)
         self.update()
+
+    def event(self, event) -> bool:
+        factor = trackpad.pinch_factor(event)
+        if factor is not None:
+            self._set_distance(self._settings.get("distance", 3.5) / factor)
+            return True
+        if trackpad.is_smart_zoom(event):
+            self.reset_camera()
+            return True
+        return super().event(event)
 
     def reset_camera(self) -> None:
         self._azimuth = 35.0

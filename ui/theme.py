@@ -514,3 +514,32 @@ QScrollBar::add-line, QScrollBar::sub-line, QScrollBar::add-page, QScrollBar::su
     border: 1px solid #141414;
 }}
 """
+
+
+import sys as _sys
+
+IS_MAC = _sys.platform == "darwin"
+
+
+def apply_app_theme(app) -> None:
+    """Windows/Linux: the stylesheet above, unchanged. macOS: see ui/mac_theme.py
+    (Fusion + macOS design language, follows the system Light/Dark appearance)."""
+    if IS_MAC:
+        from ui import mac_theme
+
+        mac_theme.apply(app)
+    else:
+        app.setStyleSheet(APP_STYLESHEET)
+
+
+def legacy_style(widget, css: str, mac_role: str | None = None) -> None:
+    """Apply a widget's original inline stylesheet on Windows/Linux. On macOS
+    the theme stylesheet styles it instead (via `mac_role`, if given), so it
+    follows the system Light/Dark appearance."""
+    if IS_MAC:
+        if mac_role is not None:
+            widget.setProperty("role", mac_role)
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+    else:
+        widget.setStyleSheet(css)

@@ -34,29 +34,20 @@ from core.depth_models import DepthEstimator, DepthResult
 from core.height_map import (
     apply_force_seamless_blur,
     apply_seamless_linear_mask,
-    apply_seamless_strip_copy,
     build_height_map,
     build_seamless_extended_tile,
-    crop_center_tile,
-    detrend,
     downsample_for_preview,
-    get_desktop_dir,
-    save_extended_height_preview,
-    save_extended_tile_preview,
-    save_raw1_mask_debug_preview,
-    save_corner_mask_debug_preview,
-    safe_save_image,
 )
 from core.height_map import to_image as height_map_to_image
 from core.maps import MAP_TYPE_LABELS, MAP_TYPE_ORDER, MapType
 from core.normal_map import generate_normal_map
 from core.normal_map import to_image as normal_map_to_image
-from core.project import PROJECT_EXTENSION, MapSlotData, ProjectData, load_project, save_project
+from core.project import PROJECT_EXTENSION, MapSlotData, ProjectData
 from core.roughness_map import generate_roughness_map
 from core.roughness_map import to_image as roughness_map_to_image
 from core.ao_map import generate_ao_map
 from core.ao_map import to_image as ao_map_to_image
-from core.albedo_adjust import apply_albedo_adjustments, generate_albedo_map
+from core.albedo_adjust import apply_albedo_adjustments
 from ui.panels.albedo_panel import AlbedoPanel
 from ui.panels.height_panel import HeightPanel
 from ui.panels.normal_panel import NormalPanel
@@ -65,6 +56,8 @@ from ui.panels.ao_panel import AOPanel
 from ui.preview_3d import Preview3DWidget
 from ui.preview_properties_panel import PreviewPropertiesPanel
 from ui.progress_dialog import OperationProgressDialog
+from ui import mac_window
+from ui.theme import IS_MAC, legacy_style
 from ui.tiled_preview_dialog import TiledPreviewDialog
 from ui.widgets import IMAGE_EXTENSIONS, ImageLabel, SlotButton
 from ui.workers import (
@@ -112,10 +105,18 @@ def _image_to_normal_array(image: Image.Image) -> np.ndarray:
     return np.asarray(image.convert("RGB"), dtype=np.float32) / 255.0
 
 
+def _heading(text: str) -> str:
+    """Section heading text: ALL CAPS on Windows, macOS-style title case on Mac."""
+    return text.title() if IS_MAC else text
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.resize(1440, 860)
+        if IS_MAC:
+            mac_window.hide_title_bar(self)
+        self._initial_layout_done = False
         self.setAcceptDrops(True)
 
         self.project = ProjectData.new()
@@ -156,6 +157,10 @@ class MainWindow(QMainWindow):
         self._select_map_type(MapType.ALBEDO)
 
     def _build_toolbar(self) -> None:
+        if IS_MAC:
+            self._build_mac_menu()
+            return
+
         toolbar = QToolBar("Main")
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
@@ -177,6 +182,32 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
         add("Exit", self.close)
 
+    def _build_mac_menu(self) -> None:
+        """macOS: no in-window toolbar — the commands live in the system menu
+        bar at the top of the screen (File menu), with the usual ⌘ shortcuts
+        and "…" on commands that open a dialog. Quit is in the app menu."""
+        file_menu = self.menuBar().addMenu("File")
+
+        def add(text: str, handler, shortcut: str) -> None:
+            action = QAction(text, self)
+            action.setShortcut(shortcut)
+            action.triggered.connect(handler)
+            file_menu.addAction(action)
+
+        add("New Project", self._new_project, "Ctrl+N")
+        add("Open Project…", self._open_project, "Ctrl+O")
+        file_menu.addSeparator()
+        add("Save", self._save_project, "Ctrl+S")
+        add("Save As…", self._save_project_as, "Ctrl+Shift+S")
+        file_menu.addSeparator()
+        add("Export Maps…", self._export_maps, "Ctrl+E")
+
+        quit_action = QAction("Quit PBRCELAIN", self)
+        quit_action.setShortcut("Ctrl+Q")
+        quit_action.setMenuRole(QAction.MenuRole.QuitRole)
+        quit_action.triggered.connect(self.close)
+        file_menu.addAction(quit_action)
+
     def _build_ui(self) -> None:
         central = QWidget()
         self.setCentralWidget(central)
@@ -185,12 +216,18 @@ class MainWindow(QMainWindow):
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         root_layout.addWidget(splitter)
+        self._main_splitter = splitter
 
         splitter.addWidget(self._build_project_section())
         splitter.addWidget(self._build_preview_section())
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([400, 1040])
+        if IS_MAC:
+            splitter.setChildrenCollapsible(False)
+            splitter.widget(0).setMinimumWidth(440)
+            splitter.setSizes([520, 920])  # refined to the screen in showEvent
+        else:
+            splitter.setSizes([400, 1040])
 
     def _build_project_section(self) -> QWidget:
         section = QWidget()
@@ -199,18 +236,26 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        heading = QLabel("MATERIAL SLOTS")
+        if IS_MAC:
+            # Room for the window's traffic-light buttons; doubles as the
+            # handle for moving the window, since there is no title bar.
+            title_space = QWidget()
+            title_space.setFixedHeight(mac_window.TITLE_BAR_HEIGHT)
+            mac_window.install_drag_area(title_space)
+            layout.addWidget(title_space)
+
+        heading = QLabel(_heading("MATERIAL SLOTS"))
         heading.setProperty("role", "panel-heading")
         layout.addWidget(heading)
 
         inspector = QWidget()
         inspector.setObjectName("MapInspector")
         inspector_layout = QVBoxLayout(inspector)
-        inspector_layout.setContentsMargins(10, 10, 10, 10)
+        inspector_layout.setContentsMargins(*((14, 6, 14, 10) if IS_MAC else (10, 10, 10, 10)))
         inspector_layout.addLayout(self._build_map_selector())
         layout.addWidget(inspector)
 
-        properties_heading = QLabel("MAP SETTINGS")
+        properties_heading = QLabel(_heading("MAP SETTINGS"))
         properties_heading.setProperty("role", "panel-heading")
         layout.addWidget(properties_heading)
         layout.addWidget(self._build_dynamic_panel_host(), 1)
@@ -218,7 +263,7 @@ class MainWindow(QMainWindow):
         controls = QWidget()
         controls.setObjectName("MapInspector")
         controls_layout = QVBoxLayout(controls)
-        controls_layout.setContentsMargins(10, 8, 10, 10)
+        controls_layout.setContentsMargins(*((14, 10, 14, 12) if IS_MAC else (10, 8, 10, 10)))
         controls_layout.addLayout(self._build_generate_controls())
         layout.addWidget(controls)
         return section
@@ -255,7 +300,7 @@ class MainWindow(QMainWindow):
         controls.setSpacing(6)
 
         self.active_slot_label = QLabel(MAP_TYPE_LABELS[MapType.ALBEDO])
-        self.active_slot_label.setStyleSheet("background-color: transparent; font-weight: bold; font-size: 13px; color: #ffffff;")
+        legacy_style(self.active_slot_label, "background-color: transparent; font-weight: bold; font-size: 13px; color: #ffffff;", "slot-title")
 
         self.upload_btn = QPushButton("Upload Image")
         self.upload_btn.clicked.connect(self._upload_image)
@@ -364,8 +409,12 @@ class MainWindow(QMainWindow):
         top_layout.setContentsMargins(0, 0, 0, 0)
         top_layout.setSpacing(0)
 
-        viewport_heading = QLabel("3D VIEWPORT")
+        viewport_heading = QLabel(_heading("3D VIEWPORT"))
         viewport_heading.setProperty("role", "viewport-label")
+        if IS_MAC:
+            # Sits in the row where the title bar used to be.
+            viewport_heading.setFixedHeight(mac_window.TITLE_BAR_HEIGHT)
+            mac_window.install_drag_area(viewport_heading)
         top_layout.addWidget(viewport_heading)
 
         self.preview_3d = Preview3DWidget()
@@ -382,7 +431,7 @@ class MainWindow(QMainWindow):
         bottom_layout.setContentsMargins(0, 0, 0, 0)
         bottom_layout.setSpacing(0)
 
-        preview_heading = QLabel("VIEW OPTIONS")
+        preview_heading = QLabel(_heading("VIEW OPTIONS"))
         preview_heading.setProperty("role", "panel-heading")
         bottom_layout.addWidget(preview_heading)
 
@@ -403,7 +452,14 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 0)
         splitter.setSizes([580, 240])
+        self._preview_splitter = splitter
         return splitter
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if IS_MAC and not self._initial_layout_done:
+            self._initial_layout_done = True
+            mac_window.fit_to_screen(self, self._main_splitter, self._preview_splitter)
 
     def _select_map_type(self, map_type: MapType) -> None:
         self._invalidate_properties_preview()
@@ -1426,6 +1482,13 @@ class MainWindow(QMainWindow):
         self._update_window_title()
 
     def _update_window_title(self) -> None:
+        if IS_MAC:
+            # Title bar is hidden, so no title text (macOS would draw it over
+            # the content). "[*]" is Qt's modified marker: macOS shows it as
+            # the dot in the close button.
+            self.setWindowTitle("[*]")
+            self.setWindowModified(self.dirty)
+            return
         name = os.path.basename(self.project_path) if self.project_path else "Untitled"
         star = "*" if self.dirty else ""
         self.setWindowTitle(f"PBRCELAIN — {name}{star}")

@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image
 from PyQt6.QtCore import QPoint, QPointF, QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QFont, QImage, QPainter, QPen, QPixmap
+from PyQt6.QtGui import QColor, QImage, QPainter, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -21,6 +21,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ui import trackpad
+from ui.theme import IS_MAC, legacy_style
 
 class InteractiveTiledCanvas(QWidget):
     zoomChanged = pyqtSignal(float)
@@ -39,6 +41,7 @@ class InteractiveTiledCanvas(QWidget):
         self._tile_h: int = 0
 
         self._zoom: float = 1.0
+        self._user_zoomed = False
         self._pan: QPointF = QPointF(0, 0)
         self._show_guides: bool = True
 
@@ -132,12 +135,14 @@ class InteractiveTiledCanvas(QWidget):
         ph = self._tiled_pixmap.height()
         scale = min(vw / float(pw), vh / float(ph), 1.0)
         self._zoom = max(0.05, scale)
+        self._user_zoomed = False
         self._center_image()
         self.zoomChanged.emit(self._zoom)
         self.update()
 
     def set_zoom(self, zoom: float, anchor_pos: QPoint | None = None) -> None:
         new_zoom = float(np.clip(zoom, 0.05, 16.0))
+        self._user_zoomed = True
         if abs(new_zoom - self._zoom) < 1e-4:
             return
 
@@ -220,10 +225,27 @@ class InteractiveTiledCanvas(QWidget):
                 painter.drawLine(cx, cy - 8, cx, cy + 8)
 
     def wheelEvent(self, event) -> None:
+        if trackpad.is_trackpad_scroll(event):
+            self._pan += trackpad.scroll_delta(event)
+            self.update()
+            return
         delta = event.angleDelta().y()
         if delta != 0:
             factor = 1.15 if delta > 0 else 1.0 / 1.15
             self.set_zoom(self._zoom * factor, anchor_pos=event.position().toPoint())
+
+    def event(self, event) -> bool:
+        factor = trackpad.pinch_factor(event)
+        if factor is not None:
+            self.set_zoom(self._zoom * factor, anchor_pos=event.position().toPoint())
+            return True
+        if trackpad.is_smart_zoom(event):
+            if abs(self._zoom - 1.0) < 0.05:
+                self.fit_to_window()
+            else:
+                self.set_zoom(1.0, anchor_pos=event.position().toPoint())
+            return True
+        return super().event(event)
 
     def mousePressEvent(self, event) -> None:
         if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.MiddleButton):
@@ -256,7 +278,11 @@ class InteractiveTiledCanvas(QWidget):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        if self._zoom <= 1.0:
+        # The image is set (and first fitted) before the dialog is laid out,
+        # so keep re-fitting on resize until the user picks a zoom themselves.
+        if not self._user_zoomed:
+            self.fit_to_window()
+        elif self._zoom <= 1.0:
             self._center_image()
 
 
@@ -269,7 +295,7 @@ class TiledPreviewDialog(QDialog):
         self.resize(900, 850)
         self.setMinimumSize(600, 500)
 
-        self.setStyleSheet("""
+        legacy_style(self, """
             QDialog {
                 background-color: #282828;
                 color: #dedede;
@@ -376,8 +402,12 @@ class TiledPreviewDialog(QDialog):
         sb_layout.setSpacing(12)
 
         self.info_label = QLabel("")
-        self.hint_label = QLabel("💡 Drag to pan | Mouse wheel to zoom | Double-click to reset zoom")
-        self.hint_label.setStyleSheet("color: #777777; font-size: 10px;")
+        self.hint_label = QLabel(
+            "💡 Drag or two-finger swipe to pan | Pinch or mouse wheel to zoom | Double-click to reset zoom"
+            if IS_MAC else
+            "💡 Drag to pan | Mouse wheel to zoom | Double-click to reset zoom"
+        )
+        legacy_style(self.hint_label, "color: #777777; font-size: 10px;", "hint")
         sb_layout.addWidget(self.info_label)
         sb_layout.addStretch(1)
         sb_layout.addWidget(self.hint_label)

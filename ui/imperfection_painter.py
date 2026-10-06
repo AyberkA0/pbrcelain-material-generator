@@ -11,8 +11,6 @@ from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import (
     QAction,
     QColor,
-    QCursor,
-    QFont,
     QImage,
     QKeySequence,
     QPainter,
@@ -30,7 +28,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QSlider,
     QSpinBox,
     QSplitter,
     QVBoxLayout,
@@ -39,7 +36,20 @@ from PyQt6.QtWidgets import (
 from PIL import Image
 import numpy as np
 
+from ui import trackpad
+from ui.theme import IS_MAC, legacy_style
+
+# Scoped to the card itself (QLabel is a QFrame subclass, so an unscoped rule
+# would also box every label inside the card). macOS styles it from the theme.
+_CARD_STYLE = "QFrame#PainterCard { background-color: #323232; border: 1px solid #202020; border-radius: 3px; padding: 6px; }"
+
 BrushMode = Literal["rough", "gloss", "eraser"]
+
+
+def _shortcut_text(key: QKeySequence.StandardKey) -> str:
+    """Platform's own label for a standard shortcut: "Ctrl+Z" on Windows, "⌘Z" on macOS."""
+    bindings = QKeySequence.keyBindings(key)
+    return bindings[0].toString(QKeySequence.SequenceFormat.NativeText) if bindings else ""
 
 
 class ImperfectionCanvasWidget(QWidget):
@@ -360,11 +370,27 @@ class ImperfectionCanvasWidget(QWidget):
             self.update()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
-        mouse_pt = event.position()
-        canvas_before = self._widget_to_canvas(mouse_pt)
-
+        if trackpad.is_trackpad_scroll(event):
+            self._pan += trackpad.scroll_delta(event)
+            self.update()
+            return
         angle = event.angleDelta().y()
-        factor = 1.15 if angle > 0 else (1.0 / 1.15)
+        if angle == 0:
+            return
+        self._zoom_at(event.position(), 1.15 if angle > 0 else (1.0 / 1.15))
+
+    def event(self, event) -> bool:
+        factor = trackpad.pinch_factor(event)
+        if factor is not None:
+            self._zoom_at(event.position(), factor)
+            return True
+        if trackpad.is_smart_zoom(event):
+            self.reset_view()
+            return True
+        return super().event(event)
+
+    def _zoom_at(self, mouse_pt, factor: float) -> None:
+        canvas_before = self._widget_to_canvas(mouse_pt)
         new_zoom = min(max(self._zoom * factor, 0.15), 12.0)
         self._zoom = new_zoom
 
@@ -405,7 +431,7 @@ class ImperfectionPainterDialog(QDialog):
             "<b>Surface Imperfection Painter:</b> Paint custom surface wear, rust, or shiny polished areas. "
             "Use the Underlay selector to align with cracks or features from your original photo."
         )
-        header.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        legacy_style(header, "color: #94a3b8; font-size: 11px;", "hint")
         main_layout.addWidget(header)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -418,18 +444,19 @@ class ImperfectionPainterDialog(QDialog):
         ctrl_layout.setSpacing(12)
 
         tool_frame = QFrame()
-        tool_frame.setStyleSheet("background-color: #323232; border: 1px solid #202020; border-radius: 3px; padding: 6px;")
+        tool_frame.setObjectName("PainterCard")
+        legacy_style(tool_frame, _CARD_STYLE)
         tool_vbox = QVBoxLayout(tool_frame)
         tool_vbox.setSpacing(6)
 
         tool_title = QLabel("BRUSH PRESETS")
-        tool_title.setStyleSheet("font-weight: bold; font-size: 10px; color: #8a8a8a; letter-spacing: 0.5px;")
+        legacy_style(tool_title, "font-weight: bold; font-size: 10px; color: #8a8a8a; letter-spacing: 0.5px;", "section-caps")
         tool_vbox.addWidget(tool_title)
 
         self.btn_rough = QPushButton("🔨 Rusty / Worn")
         self.btn_rough.setCheckable(True)
         self.btn_rough.setChecked(True)
-        self.btn_rough.setStyleSheet("""
+        legacy_style(self.btn_rough, """
             QPushButton:checked {
                 background-color: #1473e6;
                 color: #ffffff;
@@ -447,13 +474,13 @@ class ImperfectionPainterDialog(QDialog):
                 padding: 6px;
                 text-align: left;
             }
-        """)
+        """, "brush-preset")
         self.btn_rough.clicked.connect(lambda: self._set_brush_mode("rough"))
         tool_vbox.addWidget(self.btn_rough)
 
         self.btn_gloss = QPushButton("✨ Glossy / Wet")
         self.btn_gloss.setCheckable(True)
-        self.btn_gloss.setStyleSheet("""
+        legacy_style(self.btn_gloss, """
             QPushButton:checked {
                 background-color: #1473e6;
                 color: #ffffff;
@@ -471,13 +498,13 @@ class ImperfectionPainterDialog(QDialog):
                 padding: 6px;
                 text-align: left;
             }
-        """)
+        """, "brush-preset")
         self.btn_gloss.clicked.connect(lambda: self._set_brush_mode("gloss"))
         tool_vbox.addWidget(self.btn_gloss)
 
         self.btn_eraser = QPushButton("🧹 Eraser (Revert)")
         self.btn_eraser.setCheckable(True)
-        self.btn_eraser.setStyleSheet("""
+        legacy_style(self.btn_eraser, """
             QPushButton:checked {
                 background-color: #1473e6;
                 color: #ffffff;
@@ -495,19 +522,20 @@ class ImperfectionPainterDialog(QDialog):
                 padding: 6px;
                 text-align: left;
             }
-        """)
+        """, "brush-preset")
         self.btn_eraser.clicked.connect(lambda: self._set_brush_mode("eraser"))
         tool_vbox.addWidget(self.btn_eraser)
 
         ctrl_layout.addWidget(tool_frame)
 
         brush_frame = QFrame()
-        brush_frame.setStyleSheet("background-color: #323232; border: 1px solid #202020; border-radius: 3px; padding: 6px;")
+        brush_frame.setObjectName("PainterCard")
+        legacy_style(brush_frame, _CARD_STYLE)
         brush_vbox = QVBoxLayout(brush_frame)
         brush_vbox.setSpacing(8)
 
         param_title = QLabel("BRUSH PARAMETERS")
-        param_title.setStyleSheet("font-weight: bold; font-size: 10px; color: #8a8a8a; letter-spacing: 0.5px;")
+        legacy_style(param_title, "font-weight: bold; font-size: 10px; color: #8a8a8a; letter-spacing: 0.5px;", "section-caps")
         brush_vbox.addWidget(param_title)
 
         size_box = QHBoxLayout()
@@ -557,12 +585,13 @@ class ImperfectionPainterDialog(QDialog):
         ctrl_layout.addWidget(brush_frame)
 
         under_frame = QFrame()
-        under_frame.setStyleSheet("background-color: #323232; border: 1px solid #202020; border-radius: 3px; padding: 6px;")
+        under_frame.setObjectName("PainterCard")
+        legacy_style(under_frame, _CARD_STYLE)
         under_vbox = QVBoxLayout(under_frame)
         under_vbox.setSpacing(6)
 
         under_title = QLabel("UNDERLAY REFERENCE")
-        under_title.setStyleSheet("font-weight: bold; font-size: 10px; color: #8a8a8a; letter-spacing: 0.5px;")
+        legacy_style(under_title, "font-weight: bold; font-size: 10px; color: #8a8a8a; letter-spacing: 0.5px;", "section-caps")
         under_vbox.addWidget(under_title)
 
         self.underlay_combo = QComboBox()
@@ -587,9 +616,9 @@ class ImperfectionPainterDialog(QDialog):
         act_box.setSpacing(6)
 
         hist_row = QHBoxLayout()
-        undo_btn = QPushButton("↶ Undo (Ctrl+Z)")
+        undo_btn = QPushButton(f"↶ Undo ({_shortcut_text(QKeySequence.StandardKey.Undo)})")
         undo_btn.clicked.connect(lambda: self.canvas.undo())
-        redo_btn = QPushButton("↷ Redo (Ctrl+Y)")
+        redo_btn = QPushButton(f"↷ Redo ({_shortcut_text(QKeySequence.StandardKey.Redo)})")
         redo_btn.clicked.connect(lambda: self.canvas.redo())
         hist_row.addWidget(undo_btn)
         hist_row.addWidget(redo_btn)
@@ -632,8 +661,12 @@ class ImperfectionPainterDialog(QDialog):
 
         canvas_vbox.addWidget(self.canvas, 1)
 
-        status_bar = QLabel("💡 Wheel: Zoom | Middle-Click or Alt+Drag: Pan | Left-Click: Paint smooth strokes")
-        status_bar.setStyleSheet("color: #64748b; font-size: 10px;")
+        status_bar = QLabel(
+            "💡 Pinch or Wheel: Zoom | Two-Finger Swipe, Middle-Click or ⌥-Drag: Pan | Click: Paint smooth strokes"
+            if IS_MAC else
+            "💡 Wheel: Zoom | Middle-Click or Alt+Drag: Pan | Left-Click: Paint smooth strokes"
+        )
+        legacy_style(status_bar, "color: #64748b; font-size: 10px;", "hint")
         canvas_vbox.addWidget(status_bar)
 
         splitter.addWidget(canvas_container)

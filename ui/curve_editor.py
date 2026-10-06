@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap
+
+from ui.theme import IS_MAC, legacy_style
 from PyQt6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -66,6 +68,8 @@ class CurveEditorWidget(QWidget):
         self._link_axes = False
         self._drag_index: int | None = None
         self._hover_pos: QPointF | None = None
+        self._selected_index: int | None = None
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
 
         self._ensure_endpoints(self.points_x)
         self._ensure_endpoints(self.points_y)
@@ -91,6 +95,7 @@ class CurveEditorWidget(QWidget):
         if axis in ("x", "y") and axis != self._active_axis:
             self._active_axis = axis
             self._drag_index = None
+            self._selected_index = None
             self.update()
 
     @property
@@ -236,7 +241,7 @@ class CurveEditorWidget(QWidget):
         painter.setPen(ref_pen)
         painter.drawLine(self._data_to_pixel(0.0, 1.0), self._data_to_pixel(1.0, 1.0))
 
-        label_font = QFont("Segoe UI", 8)
+        label_font = QFont(".AppleSystemUIFont" if IS_MAC else "Segoe UI", 10 if IS_MAC else 8)
         painter.setFont(label_font)
         painter.setPen(QColor("#71717a"))
 
@@ -286,6 +291,7 @@ class CurveEditorWidget(QWidget):
         legend_rect = QRectF(rect.right() - 200, rect.top() + 6, 194, 22)
         painter.fillRect(legend_rect, QColor(24, 24, 27, 180))
         painter.setPen(QPen(QColor("#3f3f46"), 1.0))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawRoundedRect(legend_rect, 4, 4)
 
         painter.setPen(COLOR_X if self._active_axis == "x" else COLOR_X_GHOST)
@@ -309,7 +315,17 @@ class CurveEditorWidget(QWidget):
         pts = self._active_points()
         idx = self._point_at(pos, pts)
 
-        if event.button() == Qt.MouseButton.LeftButton:
+        # macOS: Control-click is the trackpad/one-button way to "right-click"
+        # (Qt reports the Control key as MetaModifier there).
+        is_delete_click = event.button() == Qt.MouseButton.RightButton or (
+            IS_MAC
+            and event.button() == Qt.MouseButton.LeftButton
+            and event.modifiers() & Qt.KeyboardModifier.MetaModifier
+        )
+
+        if is_delete_click:
+            self._delete_point(idx)
+        elif event.button() == Qt.MouseButton.LeftButton:
             if idx is None:
                 x, y = self._pixel_to_data(pos.x(), pos.y())
                 x = min(max(x, 0.0), 1.0)
@@ -326,18 +342,28 @@ class CurveEditorWidget(QWidget):
                     other.insert(insert_at, [x, y])
 
             self._drag_index = idx
+            self._selected_index = idx
             self.update()
             self.curveChanged.emit()
 
-        elif event.button() == Qt.MouseButton.RightButton:
-            if idx is not None and idx != 0 and idx != len(pts) - 1:
-                pts.pop(idx)
-                if self._link_axes:
-                    other = self._inactive_points()
-                    if idx < len(other):
-                        other.pop(idx)
-                self.update()
-                self.curveChanged.emit()
+    def _delete_point(self, idx: int | None) -> None:
+        """Remove an interior control point (the two endpoints are fixed)."""
+        pts = self._active_points()
+        if idx is not None and idx != 0 and idx != len(pts) - 1:
+            pts.pop(idx)
+            if self._link_axes:
+                other = self._inactive_points()
+                if idx < len(other):
+                    other.pop(idx)
+            self._selected_index = None
+            self.update()
+            self.curveChanged.emit()
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            self._delete_point(self._selected_index)
+            return
+        super().keyPressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:
         pos = event.position()
@@ -424,10 +450,15 @@ class CurveEditorDialog(QDialog):
         info = QLabel(
             "<b>Dual-Axis Lens Profile:</b> Compensates for anisotropic horizontal & vertical lens curvature.<br>"
             "• <b>Left-Click & Drag</b>: Smooth Bezier curve control points with instant live preview.<br>"
-            "• <b>Right-Click</b>: Delete point. (1.0 = auto-fitted shape, 0.0 = flat baseline)."
+            + (
+                "• <b>Right-Click</b>, <b>Control-Click</b> or <b>Delete</b> key: Delete point. "
+                if IS_MAC else
+                "• <b>Right-Click</b> or <b>Delete</b> key: Delete point. "
+            )
+            + "(1.0 = auto-fitted shape, 0.0 = flat baseline)."
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color: #a1a1aa; font-size: 11px;")
+        legacy_style(info, "color: #a1a1aa; font-size: 11px;", "hint")
         main_layout.addWidget(info)
 
         split_layout = QHBoxLayout()
@@ -442,7 +473,7 @@ class CurveEditorDialog(QDialog):
         self.btn_x = QPushButton("↔ Horizontal (X)")
         self.btn_x.setCheckable(True)
         self.btn_x.setChecked(True)
-        self.btn_x.setStyleSheet("""
+        legacy_style(self.btn_x, """
             QPushButton:checked {
                 background-color: #1473e6;
                 color: #ffffff;
@@ -465,7 +496,7 @@ class CurveEditorDialog(QDialog):
         self.btn_y = QPushButton("↕ Vertical (Y)")
         self.btn_y.setCheckable(True)
         self.btn_y.setChecked(False)
-        self.btn_y.setStyleSheet("""
+        legacy_style(self.btn_y, """
             QPushButton:checked {
                 background-color: #1473e6;
                 color: #ffffff;
@@ -487,9 +518,9 @@ class CurveEditorDialog(QDialog):
 
         axis_row.addSpacing(10)
 
-        self.link_checkbox = QCheckBox("🔗 Link X & Y")
+        self.link_checkbox = QCheckBox("🔗 Link X && Y")
         self.link_checkbox.setToolTip("Synchronize both axes symmetrically for spherical/isotropic lenses.")
-        self.link_checkbox.setStyleSheet("color: #e4e4e7; font-size: 11px;")
+        legacy_style(self.link_checkbox, "color: #e4e4e7; font-size: 11px;")
         self.link_checkbox.toggled.connect(self._on_link_toggled)
         axis_row.addWidget(self.link_checkbox)
 
@@ -527,7 +558,7 @@ class CurveEditorDialog(QDialog):
 
         preview_header = QHBoxLayout()
         preview_title = QLabel("LIVE HEIGHT PREVIEW")
-        preview_title.setStyleSheet("font-weight: bold; font-size: 11px; color: #a1a1aa; letter-spacing: 0.5px;")
+        legacy_style(preview_title, "font-weight: bold; font-size: 11px; color: #a1a1aa; letter-spacing: 0.5px;", "section-caps")
         preview_header.addWidget(preview_title)
 
         preview_header.addStretch(1)
@@ -535,7 +566,7 @@ class CurveEditorDialog(QDialog):
         self.compare_btn = QPushButton("Show Original (Raw)")
         self.compare_btn.setCheckable(True)
         self.compare_btn.setToolTip("Toggle to compare between raw uncorrected depth and current curve correction.")
-        self.compare_btn.setStyleSheet("""
+        legacy_style(self.compare_btn, """
             QPushButton:checked {
                 background-color: #1473e6;
                 color: #ffffff;
@@ -563,7 +594,7 @@ class CurveEditorDialog(QDialog):
 
         self.preview_label = ImageLabel("No Height map source loaded.\n(Upload or generate a map to see live preview)", self)
         self.preview_label.setMinimumSize(320, 260)
-        self.preview_label.setStyleSheet("""
+        legacy_style(self.preview_label, """
             QLabel {
                 background-color: #181818;
                 border: 1px solid #202020;
@@ -575,7 +606,7 @@ class CurveEditorDialog(QDialog):
         right_col.addWidget(self.preview_label, 1)
 
         preview_status = QLabel("⚡ Live 60 FPS update • Real-time dual-axis correction")
-        preview_status.setStyleSheet("color: #71717a; font-size: 10px;")
+        legacy_style(preview_status, "color: #71717a; font-size: 10px;", "hint")
         right_col.addWidget(preview_status)
 
         split_layout.addLayout(right_col, 5)

@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QCheckBox,
     QColorDialog,
     QComboBox,
     QDoubleSpinBox,
-    QHBoxLayout,
     QLabel,
     QPushButton,
-    QWidget,
 )
 
 from core.albedo_adjust import AlbedoAdjustOptions, ColorShiftRule

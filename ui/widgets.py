@@ -1,9 +1,11 @@
 """Small reusable widgets for the PBRCELAIN UI."""
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QPixmap
 from PyQt6.QtWidgets import QLabel, QPushButton
+
+from ui.theme import IS_MAC
 
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp")
@@ -40,7 +42,8 @@ class ImageLabel(QLabel):
         self._placeholder_text = placeholder_text
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumSize(200, 200)
-        self.setStyleSheet("background-color: #1a1a1a; color: #8a8a8a; border: 1px solid #202020; border-radius: 2px;")
+        if not IS_MAC:  # macOS: styled by the theme (follows Light/Dark)
+            self.setStyleSheet("background-color: #1a1a1a; color: #8a8a8a; border: 1px solid #202020; border-radius: 2px;")
         self.setText(placeholder_text)
         self.setAcceptDrops(True)
 
@@ -66,16 +69,25 @@ class ImageLabel(QLabel):
     def _rescale(self) -> None:
         if self._source_pixmap is None:
             return
+        # Scale to device pixels (2x on Retina) so the preview stays sharp.
+        dpr = self.devicePixelRatioF()
         scaled = self._source_pixmap.scaled(
-            self.size(),
+            self.size() * dpr,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
+        scaled.setDevicePixelRatio(dpr)
         super().setPixmap(scaled)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._rescale()
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        # Window moved between a Retina and a non-Retina display.
+        if event.type() == QEvent.Type.DevicePixelRatioChange:
+            self._rescale()
 
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         if event.mimeData().hasUrls():

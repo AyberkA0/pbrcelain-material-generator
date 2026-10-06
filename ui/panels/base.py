@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
+    QComboBox,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -18,6 +19,8 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from ui.theme import IS_MAC
 
 COLUMNS = 3
 
@@ -39,7 +42,7 @@ class PropertyPanel(QWidget):
         self._grid = QGridLayout(content)
         self._grid.setHorizontalSpacing(14)
         self._grid.setVerticalSpacing(12)
-        self._grid.setContentsMargins(10, 10, 10, 10)
+        self._grid.setContentsMargins(*((14, 12, 14, 14) if IS_MAC else (10, 10, 10, 10)))
         for c in range(COLUMNS):
             self._grid.setColumnStretch(c, 1)
 
@@ -56,6 +59,15 @@ class PropertyPanel(QWidget):
         label.setProperty("role", "dim")
         v.addWidget(label)
         v.addWidget(widget)
+        if IS_MAC:
+            # macOS fonts are wider; let combos shrink instead of pushing the
+            # 3-column grid wider than the panel (which clips the last column).
+            combos = widget.findChildren(QComboBox)
+            if isinstance(widget, QComboBox):
+                combos.append(widget)
+            for combo in combos:
+                combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+                combo.setMinimumContentsLength(4)
         self._grid.addWidget(container, self._row, self._col)
         self._advance()
         return container
@@ -116,6 +128,15 @@ class GeneratePropertiesContainer(QWidget):
 
         tabs_row = QHBoxLayout()
         tabs_row.setContentsMargins(6, 6, 6, 0)
+        if IS_MAC:
+            # macOS segmented control: the two tab buttons sit in a rounded track.
+            tabs_row.setContentsMargins(14, 4, 14, 2)
+            segment = QWidget()
+            segment.setObjectName("SubtabBar")
+            segment.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+            segment_layout = QHBoxLayout(segment)
+            segment_layout.setContentsMargins(2, 2, 2, 2)
+            segment_layout.setSpacing(2)
         self.generate_tab_btn = QPushButton("Generate")
         self.properties_tab_btn = QPushButton("Adjustment")
         for btn in (self.generate_tab_btn, self.properties_tab_btn):
@@ -124,9 +145,14 @@ class GeneratePropertiesContainer(QWidget):
         self.generate_tab_btn.setChecked(True)
         self.generate_tab_btn.clicked.connect(lambda: self.select_page("generate"))
         self.properties_tab_btn.clicked.connect(lambda: self.select_page("properties"))
-        tabs_row.addWidget(self.generate_tab_btn)
-        tabs_row.addWidget(self.properties_tab_btn)
-        tabs_row.addStretch(1)
+        if IS_MAC:
+            segment_layout.addWidget(self.generate_tab_btn)
+            segment_layout.addWidget(self.properties_tab_btn)
+            tabs_row.addWidget(segment, 1)
+        else:
+            tabs_row.addWidget(self.generate_tab_btn)
+            tabs_row.addWidget(self.properties_tab_btn)
+            tabs_row.addStretch(1)
         layout.addLayout(tabs_row)
 
         self.stack = QStackedWidget()

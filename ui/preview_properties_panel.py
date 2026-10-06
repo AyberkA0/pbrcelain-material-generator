@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
-    QLabel,
     QLineEdit,
     QPushButton,
     QScrollArea,
@@ -145,7 +144,7 @@ class PreviewPropertiesPanel(QWidget):
         self.env_intensity_spin = QDoubleSpinBox()
         self.env_intensity_spin.setRange(0.0, 5.0)
         self.env_intensity_spin.setSingleStep(0.1)
-        self.env_intensity_spin.setValue(0.6)
+        self.env_intensity_spin.setValue(1.0)
         self.env_intensity_spin.valueChanged.connect(self._emit_changed)
 
         self.exposure_spin = QDoubleSpinBox()

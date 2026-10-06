@@ -4,7 +4,7 @@ pipeline (core.height_map), now living inside PBRCELAIN's dynamic panel area.
 
 Split into two independent pages:
 - Generate: depth model + chunk estimation (needs the model process).
-- Properties: detrend/invert/gamma/clip/seamless/bit depth — instant
+- Properties: detrend/invert/gamma/clip/bit depth — instant
   post-processing on the already-produced raw depth data.
 """
 from __future__ import annotations
@@ -36,6 +36,7 @@ from ui.curve_editor import CurveEditorDialog
 from ui.panels.base import GeneratePropertiesContainer
 import sys
 
+from ui.theme import legacy_style
 
 def _build_device_map() -> dict[str, str]:
     if sys.platform == "darwin":
@@ -184,7 +185,7 @@ class HeightPanel(GeneratePropertiesContainer):
 
         self.batch_info_label = QLabel("ⓘ")
         self.batch_info_label.setCursor(Qt.CursorShape.WhatsThisCursor)
-        self.batch_info_label.setStyleSheet("""
+        legacy_style(self.batch_info_label, """
             QLabel {
                 color: #1473e6;
                 font-size: 14px;
@@ -194,7 +195,7 @@ class HeightPanel(GeneratePropertiesContainer):
             QLabel:hover {
                 color: #2688f2;
             }
-        """)
+        """, "info-icon")
         tooltip_text = (
             "Chunk Batch Size (Parallel Processing):\n\n"
             "• High-end GPU (8GB+ VRAM): Set to 2 or 4 to significantly speed up inference.\n"
@@ -279,7 +280,7 @@ class HeightPanel(GeneratePropertiesContainer):
 
         self.seamless_info_label = QLabel("ⓘ")
         self.seamless_info_label.setCursor(Qt.CursorShape.WhatsThisCursor)
-        self.seamless_info_label.setStyleSheet("""
+        legacy_style(self.seamless_info_label, """
             QLabel {
                 color: #1473e6;
                 font-size: 14px;
@@ -289,7 +290,7 @@ class HeightPanel(GeneratePropertiesContainer):
             QLabel:hover {
                 color: #2688f2;
             }
-        """)
+        """, "info-icon")
 
         tooltip_text = (
             "Seamless Tiling (>99.8%):\n\n"
@@ -421,18 +422,6 @@ class HeightPanel(GeneratePropertiesContainer):
         self.high_pct_spin.valueChanged.connect(self.propertiesChanged.emit)
         page.add_param("Clip high %", self.high_pct_spin)
 
-        self.seamless_checkbox = QCheckBox("Make seamless (tileable)")
-        self.seamless_checkbox.stateChanged.connect(self._on_seamless_toggled)
-        self.seamless_checkbox.stateChanged.connect(self.propertiesChanged.emit)
-        page.add_param("Tiling", self.seamless_checkbox)
-
-        self.seamless_feather_spin = QDoubleSpinBox()
-        self.seamless_feather_spin.setRange(1.0, 25.0)
-        self.seamless_feather_spin.setValue(6.0)
-        self.seamless_feather_spin.setSuffix(" %")
-        self.seamless_feather_spin.valueChanged.connect(self.propertiesChanged.emit)
-        page.add_param("Seam feather", self.seamless_feather_spin)
-
         self.bit_depth_combo = QComboBox()
         self.bit_depth_combo.addItems(["8-bit (PNG)", "16-bit (PNG)", "32-bit (OpenEXR .exr)"])
         self.bit_depth_combo.setCurrentText("16-bit (PNG)")
@@ -445,7 +434,7 @@ class HeightPanel(GeneratePropertiesContainer):
 
         info_card = QFrame()
         info_card.setObjectName("HeightWorkflowCard")
-        info_card.setStyleSheet("""
+        legacy_style(info_card, """
             QFrame#HeightWorkflowCard {
                 background-color: #282828;
                 border: 1px solid #202020;
@@ -459,7 +448,7 @@ class HeightPanel(GeneratePropertiesContainer):
         card_layout.setSpacing(4)
 
         card_title = QLabel("💡 Workflow Recommendation")
-        card_title.setStyleSheet("background-color: transparent; font-weight: bold; font-size: 11px; color: #1473e6;")
+        legacy_style(card_title, "background-color: transparent; font-weight: bold; font-size: 11px; color: #1473e6;", "card-title")
         card_layout.addWidget(card_title)
 
         card_text = QLabel(
@@ -468,13 +457,12 @@ class HeightPanel(GeneratePropertiesContainer):
             "for the highest-quality, full-resolution output."
         )
         card_text.setWordWrap(True)
-        card_text.setStyleSheet("background-color: transparent; color: #a0a0a0; font-size: 11px; line-height: 140%;")
+        legacy_style(card_text, "background-color: transparent; color: #a0a0a0; font-size: 11px; line-height: 140%;", "hint")
         card_layout.addWidget(card_text)
 
         page.add_wide(info_card)
 
         self._on_detrend_mode_changed(self.detrend_combo.currentText())
-        self._on_seamless_toggled()
 
     def reset_to_defaults(self) -> None:
         self.detrend_combo.setCurrentText("Remove bowl/dome (recommended)")
@@ -490,8 +478,6 @@ class HeightPanel(GeneratePropertiesContainer):
         self.blur_spin.setValue(0)
         self.low_pct_spin.setValue(1.0)
         self.high_pct_spin.setValue(99.0)
-        self.seamless_checkbox.setChecked(False)
-        self.seamless_feather_spin.setValue(6.0)
         self.bit_depth_combo.setCurrentText("16-bit (PNG)")
         self.propertiesChanged.emit()
 
@@ -499,9 +485,6 @@ class HeightPanel(GeneratePropertiesContainer):
         mode = DETREND_MAP.get(text)
         self.detrend_radius_spin.setEnabled(mode == DETREND_HIGHPASS)
         self.edit_curve_btn.setEnabled(mode == DETREND_QUADRATIC)
-
-    def _on_seamless_toggled(self, *_args) -> None:
-        self.seamless_feather_spin.setEnabled(self.seamless_checkbox.isChecked())
 
     def _open_curve_editor(self) -> None:
         raw_depth = None
@@ -552,8 +535,6 @@ class HeightPanel(GeneratePropertiesContainer):
             bowl_curve_x=list(self._bowl_curve_x),
             bowl_curve_y=list(self._bowl_curve_y),
             bowl_curve=list(self._bowl_curve_x),
-            seamless=self.seamless_checkbox.isChecked(),
-            seamless_feather_pct=self.seamless_feather_spin.value(),
             local_equalization=self.local_eq_spin.value(),
             crevice_suppression=self.crevice_spin.value(),
             albedo_guidance=self.albedo_guidance_spin.value(),
@@ -627,8 +608,6 @@ class HeightPanel(GeneratePropertiesContainer):
             "blur": self.blur_spin.value(),
             "low_pct": self.low_pct_spin.value(),
             "high_pct": self.high_pct_spin.value(),
-            "seamless": self.seamless_checkbox.isChecked(),
-            "seamless_feather": self.seamless_feather_spin.value(),
             "bit_depth": self.bit_depth_combo.currentText(),
         }
 
@@ -649,8 +628,6 @@ class HeightPanel(GeneratePropertiesContainer):
         self.blur_spin.setValue(data.get("blur", self.blur_spin.value()))
         self.low_pct_spin.setValue(data.get("low_pct", self.low_pct_spin.value()))
         self.high_pct_spin.setValue(data.get("high_pct", self.high_pct_spin.value()))
-        self.seamless_checkbox.setChecked(data.get("seamless", False))
-        self.seamless_feather_spin.setValue(data.get("seamless_feather", self.seamless_feather_spin.value()))
 
         self.bit_depth_combo.setCurrentText(data.get("bit_depth", self.bit_depth_combo.currentText()))
 

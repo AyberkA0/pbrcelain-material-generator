@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from ui.theme import legacy_style
 
 class OperationProgressDialog(QDialog):
     """Modern modal progress/status dialog for long-running I/O and processing tasks.
@@ -36,7 +37,7 @@ class OperationProgressDialog(QDialog):
             | Qt.WindowType.WindowTitleHint
         )
         self.setFixedSize(400, 140)
-        self.setStyleSheet("""
+        legacy_style(self, """
             QDialog {
                 background-color: #323232;
                 border: 1px solid #202020;

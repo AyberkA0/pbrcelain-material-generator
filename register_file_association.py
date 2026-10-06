@@ -28,6 +28,7 @@ CLASSES_ROOT = r"Software\Classes"
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 MAIN_SCRIPT = os.path.join(PROJECT_DIR, "main.py")
+ICON_FILE = os.path.join(PROJECT_DIR, "ui", "assets", "app_icon.ico")
 
 
 def _find_pythonw() -> str:
@@ -74,7 +75,7 @@ def register() -> None:
     _set_value(EXTENSION, PROG_ID)
     _set_value(rf"{EXTENSION}\OpenWithProgids", "", name=PROG_ID)
     _set_value(PROG_ID, DESCRIPTION)
-    _set_value(rf"{PROG_ID}\DefaultIcon", f'"{pythonw}",0')
+    _set_value(rf"{PROG_ID}\DefaultIcon", f'"{ICON_FILE}",0')
     _set_value(rf"{PROG_ID}\shell", "open")
     _set_value(rf"{PROG_ID}\shell\open", "Open with PBRCELAIN")
     _set_value(rf"{PROG_ID}\shell\open\command", command)

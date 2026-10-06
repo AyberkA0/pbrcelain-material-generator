@@ -24,6 +24,7 @@ import numpy as np
 
 from core.roughness_map import ROUGHNESS_PRESETS, RoughnessMapOptions
 from ui.imperfection_painter import ImperfectionPainterDialog
+from ui.theme import legacy_style
 from ui.panels.base import GeneratePropertiesContainer
 
 
@@ -134,7 +135,7 @@ class RoughnessPanel(GeneratePropertiesContainer):
         page.add_wide(paint_container)
 
         self.imperfection_status_label = QLabel("No custom paint layer")
-        self.imperfection_status_label.setStyleSheet("color: #71717a; font-size: 11px;")
+        legacy_style(self.imperfection_status_label, "color: #71717a; font-size: 11px;", "hint")
         page.add_wide(self.imperfection_status_label)
 
         self.imperfection_strength_spin = QDoubleSpinBox()
@@ -185,10 +186,10 @@ class RoughnessPanel(GeneratePropertiesContainer):
         if has_paint:
             h, w = self._imperfection_mask.shape[:2]
             self.imperfection_status_label.setText(f"● Custom paint active ({w}×{h})")
-            self.imperfection_status_label.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: bold;")
+            legacy_style(self.imperfection_status_label, "color: #38bdf8; font-size: 11px; font-weight: bold;", "hint-active")
         else:
             self.imperfection_status_label.setText("No custom paint layer")
-            self.imperfection_status_label.setStyleSheet("color: #71717a; font-size: 11px;")
+            legacy_style(self.imperfection_status_label, "color: #71717a; font-size: 11px;", "hint")
 
     def _on_preset_changed(self, preset_name: str) -> None:
         if preset_name not in ROUGHNESS_PRESETS or preset_name == "Custom":
