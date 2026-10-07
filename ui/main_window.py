@@ -48,6 +48,8 @@ from core.project import PROJECT_EXTENSION, MapSlotData, ProjectData
 from core.roughness_map import generate_roughness_map
 from core.roughness_map import to_image as roughness_map_to_image
 from core.ao_map import generate_ao_map
+from core.curvature_map import generate_curvature_map
+from core.curvature_map import to_image as curvature_map_to_image
 from core.ao_map import to_image as ao_map_to_image
 from core.albedo_adjust import apply_albedo_adjustments
 from ui.panels.albedo_panel import AlbedoPanel
@@ -1781,6 +1783,11 @@ class MainWindow(QMainWindow):
                 ext = ".exr" if getattr(img, "mode", None) == "F" else ".png"
                 fname = f"{mt.value}{ext}"
                 items.append((MAP_TYPE_LABELS[mt], img, fname))
+
+        height_img = self.generated_images.get(MapType.HEIGHT) or self.source_images.get(MapType.HEIGHT)
+        if height_img is not None and self.ao_panel.export_curvature():
+            curvature = generate_curvature_map(_image_to_height_array(height_img))
+            items.append(("Curvature", curvature_map_to_image(curvature), "curvature.png"))
 
         if not items:
             QMessageBox.information(self, "Nothing to export", "No maps have been generated or uploaded yet.")

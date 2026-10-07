@@ -84,8 +84,15 @@ without re-running the model.
   material presets, height-cavity and albedo-contrast blending, and a painter for
   hand-drawn wear, rust or glossy areas. This is a heuristic starting point, not a
   measurement of real surface roughness.
-- **Ambient Occlusion** — horizon-ray sampling over the height field (4–16 rays),
-  with strength, contrast and 8/16-bit output.
+- **Ambient Occlusion** — ray-traced over the height field as a real 3D surface:
+  you give its real-world scale (surface width and maximum depth) and each
+  pixel's sky visibility is traced in 4–16 directions, so crevices darken by
+  their actual depth and width and the result looks the same at any resolution.
+  The original fast approximation remains available as the *Classic* method
+  (projects saved before keep using it). Strength, contrast, 8/16-bit output.
+- **Curvature** — exported alongside the other maps (optional, in the AO
+  panel): mid-grey is flat, brighter marks edges and ridges, darker marks
+  cavities; the usual mask for edge wear and dirt in material graphs.
 - **Albedo** — used as uploaded, with optional auto white balance, color-range
   shifting and seamless edge blending.
 
@@ -182,4 +189,4 @@ restores everything without re-running the depth model.
 Commands (File menu, plus the toolbar on Windows): **New Project / Open Project /
 Open Recent / Save / Save As / Export Maps**.
 **Export Maps** writes every available map to a folder (PNG, or EXR for 32-bit
-height maps).
+height maps), plus `curvature.png` when a Height map exists.
