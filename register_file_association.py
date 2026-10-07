@@ -74,8 +74,6 @@ def _notify_shell() -> None:
 
 
 def _create_start_menu_shortcut(pythonw: str) -> None:
-    # Values go through environment variables so paths with spaces or
-    # quotes need no PowerShell escaping.
     script = (
         "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:PBR_LNK);"
         "$s.TargetPath = $env:PBR_TARGET; $s.Arguments = $env:PBR_ARGS;"

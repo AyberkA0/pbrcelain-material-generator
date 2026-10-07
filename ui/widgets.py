@@ -42,7 +42,7 @@ class ImageLabel(QLabel):
         self._placeholder_text = placeholder_text
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumSize(200, 200)
-        if PLATFORM_THEME == "legacy":  # macOS/Windows themes style ImageLabel themselves
+        if PLATFORM_THEME == "legacy":
             self.setStyleSheet("background-color: #1a1a1a; color: #8a8a8a; border: 1px solid #202020; border-radius: 2px;")
         self.setText(placeholder_text)
         self.setAcceptDrops(True)
@@ -69,7 +69,6 @@ class ImageLabel(QLabel):
     def _rescale(self) -> None:
         if self._source_pixmap is None:
             return
-        # Scale to device pixels (2x on Retina) so the preview stays sharp.
         dpr = self.devicePixelRatioF()
         scaled = self._source_pixmap.scaled(
             self.size() * dpr,
@@ -85,7 +84,6 @@ class ImageLabel(QLabel):
 
     def changeEvent(self, event):
         super().changeEvent(event)
-        # Window moved between a Retina and a non-Retina display.
         if event.type() == QEvent.Type.DevicePixelRatioChange:
             self._rescale()
 

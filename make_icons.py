@@ -28,8 +28,8 @@ DEFAULT_SOURCE = os.path.join(ASSETS, "app_icon_source.jpg")
 
 SIZE = 1024
 SUPERSAMPLE = 4
-SQUIRCLE_EXPONENT = 5.0  # superellipse |x|^n + |y|^n <= 1, close to Apple's continuous corners
-MAC_BODY = 824           # Apple icon grid: 824px body inside a 1024px canvas
+SQUIRCLE_EXPONENT = 5.0
+MAC_BODY = 824
 
 
 def squircle_mask(size: int) -> Image.Image:
@@ -79,8 +79,6 @@ def main() -> None:
     full = squircle_icon(source, SIZE)
     full.save(os.path.join(ASSETS, "app_icon.png"))
 
-    # Downscale each size from the full-res squircle (sharper than letting
-    # the ICO writer resample one image).
     ico_sizes = [16, 24, 32, 48, 64, 128, 256]
     frames = [squircle_icon(source, s) for s in ico_sizes]
     frames[-1].save(os.path.join(ASSETS, "app_icon.ico"), format="ICO",

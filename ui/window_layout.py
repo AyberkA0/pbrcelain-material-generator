@@ -22,7 +22,6 @@ def fit_to_screen(window: QMainWindow, sidebar_splitter: QSplitter, preview_spli
 
     side = max(sidebar_min, min(sidebar_max, int(w * sidebar_ratio)))
     sidebar_splitter.setSizes([side, w - side])
-    # Viewport ~60% of the height, View Options the remaining ~40%.
     preview_splitter.setSizes([600, 400])
 
 

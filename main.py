@@ -86,13 +86,9 @@ def _set_app_icon(app: QApplication) -> None:
 
     assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "assets")
     if sys.platform == "darwin":
-        # Apple-grid version (padding + shadow) so the Dock icon matches other
-        # apps when started from a terminal; the .app bundle has its own .icns.
         app.setWindowIcon(QIcon(os.path.join(assets, "mac", "app_icon.png")))
         return
     if sys.platform == "win32":
-        # Without an explicit AppUserModelID, Windows groups the window under
-        # python(w).exe and shows Python's icon in the taskbar.
         try:
             import ctypes
 

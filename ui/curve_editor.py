@@ -316,8 +316,6 @@ class CurveEditorWidget(QWidget):
         pts = self._active_points()
         idx = self._point_at(pos, pts)
 
-        # macOS: Control-click is the trackpad/one-button way to "right-click"
-        # (Qt reports the Control key as MetaModifier there).
         is_delete_click = event.button() == Qt.MouseButton.RightButton or (
             IS_MAC
             and event.button() == Qt.MouseButton.LeftButton

@@ -278,8 +278,6 @@ class InteractiveTiledCanvas(QWidget):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        # The image is set (and first fitted) before the dialog is laid out,
-        # so keep re-fitting on resize until the user picks a zoom themselves.
         if not self._user_zoomed:
             self.fit_to_window()
         elif self._zoom <= 1.0:

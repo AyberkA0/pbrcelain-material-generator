@@ -313,7 +313,7 @@ class HeightPanel(GeneratePropertiesContainer):
             "Force seamless with blur:\n\n"
             "• Applies a smooth band blur (edge length × 3%) along the top and left frame\n"
             "  boundary lines of the extended tile until sharp step discontinuities disappear.\n"
-            "• Eliminates boundary seam artifacts before the AI depth model runs."
+            "• Eliminates boundary seam artifacts before the depth model runs."
         )
         seamless_layout.addWidget(self.force_seamless_blur_checkbox)
 

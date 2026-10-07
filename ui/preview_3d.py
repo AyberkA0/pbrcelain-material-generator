@@ -26,11 +26,6 @@ from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 
 from ui import trackpad
 
-# Default environment when no HDRI is selected: a procedural sky in the style
-# of Unity's default skybox (blue zenith, bright horizon, grey ground and a
-# sun disk aligned with the key light). It is drawn as the viewport backdrop
-# and also lights the object (hemispherical ambient + sky reflections), so
-# materials read well out of the box instead of sitting in near-black ambient.
 SKY_GLSL = """
 const vec3 SKY_ZENITH = vec3(0.32, 0.47, 0.72);
 const vec3 SKY_HORIZON = vec3(0.80, 0.82, 0.86);
@@ -559,10 +554,9 @@ class Preview3DWidget(QOpenGLWidget):
             self._hdri_pending_upload = True
 
     def initializeGL(self) -> None:
-        # macOS: Qt's context setup can leave a stale GL_INVALID_ENUM in the
-        # error queue, which PyOpenGL would attribute to our first call.
-        while gl.glGetError() != gl.GL_NO_ERROR:
-            pass
+        drained = 0
+        while gl.glGetError() != gl.GL_NO_ERROR and drained < 500:
+            drained += 1
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glEnable(gl.GL_MULTISAMPLE)
 
@@ -928,7 +922,6 @@ class Preview3DWidget(QOpenGLWidget):
 
     def wheelEvent(self, event) -> None:
         if trackpad.is_trackpad_scroll(event):
-            # Two-finger swipe orbits (Shift: light, Cmd: pan), like a drag.
             d = trackpad.scroll_delta(event)
             self._apply_drag(d.x(), d.y(), event.modifiers())
             return

@@ -314,7 +314,6 @@ class MainWindow(QMainWindow):
         if PLATFORM_THEME == "legacy":
             splitter.setSizes([400, 1040])
         else:
-            # Refined to the screen (or the last session) in showEvent.
             splitter.setChildrenCollapsible(False)
             splitter.widget(0).setMinimumWidth(pick(mac=440, windows=420))
             splitter.setSizes([520, 920])
@@ -327,8 +326,6 @@ class MainWindow(QMainWindow):
         layout.setSpacing(0)
 
         if IS_MAC:
-            # Room for the window's traffic-light buttons; doubles as the
-            # handle for moving the window, since there is no title bar.
             title_space = QWidget()
             title_space.setFixedHeight(mac_window.TITLE_BAR_HEIGHT)
             mac_window.install_drag_area(title_space)
@@ -502,7 +499,6 @@ class MainWindow(QMainWindow):
         viewport_heading = QLabel(_heading("3D VIEWPORT"))
         viewport_heading.setProperty("role", "viewport-label")
         if IS_MAC:
-            # Sits in the row where the title bar used to be.
             viewport_heading.setFixedHeight(mac_window.TITLE_BAR_HEIGHT)
             mac_window.install_drag_area(viewport_heading)
         top_layout.addWidget(viewport_heading)
@@ -1566,8 +1562,6 @@ class MainWindow(QMainWindow):
         if self._taskbar_progress is not None:
             self._taskbar_progress.set_busy(busy)
         if not busy and not self.isActiveWindow():
-            # Long job finished while the user was elsewhere: flash the
-            # taskbar button (Windows) / bounce the Dock icon (macOS).
             QApplication.alert(self)
 
     def _on_preview_settings_changed(self, settings: dict) -> None:
@@ -1588,9 +1582,6 @@ class MainWindow(QMainWindow):
 
     def _update_window_title(self) -> None:
         if IS_MAC:
-            # Title bar is hidden, so no title text (macOS would draw it over
-            # the content). "[*]" is Qt's modified marker: macOS shows it as
-            # the dot in the close button.
             self.setWindowTitle("[*]")
             self.setWindowModified(self.dirty)
             return

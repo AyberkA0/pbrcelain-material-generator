@@ -14,7 +14,6 @@ def fit_popup_to_contents(combo: QComboBox) -> None:
     has_icons = any(not combo.itemIcon(i).isNull() for i in range(combo.count()))
     icon_w = combo.iconSize().width() + 6 if has_icons else 0
     scrollbar = view.verticalScrollBar().sizeHint().width() if combo.count() > combo.maxVisibleItems() else 0
-    # Item padding (QSS) + popup frame/padding + a little breathing room.
     view.setMinimumWidth(max(combo.width(), widest + icon_w + scrollbar + 40))
 
 

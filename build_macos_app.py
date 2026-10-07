@@ -117,11 +117,6 @@ def _interpreter_info(python: str) -> dict:
 
 
 def _launcher_script(interpreter: str, site_packages: list[str]) -> str:
-    # `exec` keeps the launcher's process. Because the interpreter binary
-    # itself lives inside this bundle, macOS identifies the running app as
-    # PBRCELAIN.app (Dock name/icon), and Finder's "open document" events
-    # reach it. A venv's site-packages are added explicitly, since the copied
-    # binary only knows its base installation.
     if site_packages:
         boot = (
             "import runpy, site, sys\n"
@@ -180,8 +175,6 @@ def install(dest_dir: str) -> None:
             check=True, capture_output=True,
         )
     else:
-        # Non-framework Python (e.g. conda): run it in place. Works the same,
-        # but the Dock may show it as "python" instead of PBRCELAIN.
         interpreter = python
     site_packages = info["site_packages"] if info["in_venv"] and info["framework_app"] else []
 

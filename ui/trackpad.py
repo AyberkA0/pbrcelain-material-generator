@@ -36,7 +36,6 @@ def scroll_delta(event: QWheelEvent) -> QPointF:
     scrolling setting (content moves with the fingers)."""
     d = event.pixelDelta()
     if d.isNull():
-        # No pixel deltas (Windows touchpads): 120 units ≈ one wheel notch.
         a = event.angleDelta()
         return QPointF(a.x() * 0.5, a.y() * 0.5)
     return QPointF(d.x(), d.y())

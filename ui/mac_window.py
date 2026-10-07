@@ -31,8 +31,6 @@ class _DragArea(QObject):
         if etype == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
             window = obj.window()
             self._offset = event.globalPosition().toPoint() - window.frameGeometry().topLeft()
-            # Prefer the native move (keeps window snapping/tiling); if the
-            # system doesn't take over, the MouseMove branch moves it instead.
             handle = window.windowHandle()
             if handle is not None:
                 handle.startSystemMove()

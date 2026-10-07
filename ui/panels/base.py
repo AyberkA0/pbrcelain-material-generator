@@ -60,10 +60,6 @@ class PropertyPanel(QWidget):
         v.addWidget(label)
         v.addWidget(widget)
         if PLATFORM_THEME != "legacy":
-            # The system UI fonts are wider than the legacy 11px; let combos
-            # shrink instead of pushing the 3-column grid wider than the panel
-            # (which clips the last column). Their drop-down lists still open
-            # at full width (ui/combo_popup.py).
             combos = widget.findChildren(QComboBox)
             if isinstance(widget, QComboBox):
                 combos.append(widget)
@@ -131,7 +127,6 @@ class GeneratePropertiesContainer(QWidget):
         tabs_row = QHBoxLayout()
         tabs_row.setContentsMargins(6, 6, 6, 0)
         if IS_MAC:
-            # macOS segmented control: the two tab buttons sit in a rounded track.
             tabs_row.setContentsMargins(14, 4, 14, 2)
             segment = QWidget()
             segment.setObjectName("SubtabBar")

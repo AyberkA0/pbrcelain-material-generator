@@ -40,8 +40,6 @@ import numpy as np
 from ui import trackpad
 from ui.theme import legacy_style, pick
 
-# Scoped to the card itself (QLabel is a QFrame subclass, so an unscoped rule
-# would also box every label inside the card). macOS styles it from the theme.
 _CARD_STYLE = "QFrame#PainterCard { background-color: #323232; border: 1px solid #202020; border-radius: 3px; padding: 6px; }"
 
 BrushMode = Literal["rough", "gloss", "eraser"]
@@ -74,8 +72,8 @@ class ImperfectionCanvasWidget(QWidget):
         self.brush_size = 42
         self.brush_hardness = 0.2
         self.brush_flow = 0.5
-        self._pressure = 1.0       # pen pressure of the current stroke (1.0 for the mouse)
-        self._pen_eraser = False   # stroke made with the pen's eraser end
+        self._pressure = 1.0
+        self._pen_eraser = False
         self.target_roughness = 1.0
 
         self._zoom = 1.0

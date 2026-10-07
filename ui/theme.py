@@ -522,9 +522,6 @@ from PyQt6.QtCore import QObject as _QObject, pyqtSignal as _pyqtSignal
 
 IS_MAC = _sys.platform == "darwin"
 IS_WINDOWS = _sys.platform == "win32"
-# macOS and Windows each get their own native-looking design
-# (ui/mac_theme.py, ui/windows_theme.py); other platforms keep the
-# stylesheet above.
 PLATFORM_THEME = "mac" if IS_MAC else ("windows" if IS_WINDOWS else "legacy")
 
 
@@ -542,9 +539,6 @@ class _ThemeSignals(_QObject):
 
 
 _signals = _ThemeSignals()
-# Emitted after the theme is (re)applied, e.g. when the system switches
-# between Light and Dark mode; for things the stylesheet can't reach
-# (tinted icons, the Windows title bar).
 theme_changed = _signals.changed
 
 

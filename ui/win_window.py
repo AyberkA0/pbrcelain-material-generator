@@ -14,11 +14,10 @@ import uuid
 
 _IS_WINDOWS = sys.platform == "win32"
 
-# DWM window attributes
-_DWMWA_USE_IMMERSIVE_DARK_MODE = 20          # Windows 10 20H1+ / 11
-_DWMWA_USE_IMMERSIVE_DARK_MODE_OLD = 19      # Windows 10 1809–1909
-_DWMWA_SYSTEMBACKDROP_TYPE = 38              # Windows 11 22H2+
-_DWMSBT_MAINWINDOW = 2                       # Mica
+_DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+_DWMWA_USE_IMMERSIVE_DARK_MODE_OLD = 19
+_DWMWA_SYSTEMBACKDROP_TYPE = 38
+_DWMSBT_MAINWINDOW = 2
 
 
 def _hwnd(widget) -> int:
@@ -64,8 +63,6 @@ _CLSID_TASKBAR_LIST = "{56FDF344-FD6D-11d0-958A-006097C9A090}"
 _IID_ITASKBAR_LIST3 = "{ea1afb91-9e28-4b86-90e9-9e9f8a5eefaf}"
 _CLSCTX_INPROC_SERVER = 1
 
-# ITaskbarList3 vtable slots (IUnknown 0-2, ITaskbarList 3-7, ITaskbarList2 8,
-# SetProgressValue 9)
 _SLOT_HR_INIT = 3
 _SLOT_SET_PROGRESS_STATE = 10
 

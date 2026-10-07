@@ -159,7 +159,6 @@ QToolTip {{
     padding: 6px 8px;
 }}
 
-/* ---- Menu bar, menus and the command bar ---- */
 
 QMenuBar {{
     background-color: {t["window"]};
@@ -245,7 +244,6 @@ QToolButton:pressed {{
     color: {t["secondary"]};
 }}
 
-/* ---- Text ---- */
 
 QLabel {{
     background-color: transparent;
@@ -297,7 +295,6 @@ QLabel[role="viewport-label"] {{
     padding: 8px 16px;
 }}
 
-/* ---- Cards ---- */
 
 QGroupBox {{
     background-color: {t["card"]};
@@ -330,7 +327,6 @@ QScrollArea {{
     background: transparent;
 }}
 
-/* ---- Buttons ---- */
 
 QPushButton {{
     background-color: {t["control"]};
@@ -412,7 +408,6 @@ QPushButton[role="brush-preset"] {{
     padding: 6px 10px;
 }}
 
-/* Material slots: Fluent toggle buttons (accent-filled when selected). */
 QPushButton[role="slot-btn"] {{
     font-size: 11px;
     font-weight: 600;
@@ -424,7 +419,6 @@ QPushButton[role="slot-btn"]:!checked {{
     color: {t["secondary"]};
 }}
 
-/* Generate / Adjustment: Fluent selector bar (accent underline). */
 QPushButton[role="subtab"] {{
     background-color: transparent;
     color: {t["secondary"]};
@@ -447,7 +441,6 @@ QPushButton[role="subtab"]:checked {{
     font-weight: 600;
 }}
 
-/* ---- Inputs ---- */
 
 QLineEdit, QSpinBox, QDoubleSpinBox {{
     background-color: {t["field"]};
@@ -618,7 +611,6 @@ QCheckBox::indicator:checked:disabled {{
     image: url("{_ASSETS}/check-disabled.svg");
 }}
 
-/* ---- Progress, scrollbars, splitters ---- */
 
 QProgressBar {{
     border: none;
@@ -678,7 +670,6 @@ QSplitter::handle:vertical {{
     height: 1px;
 }}
 
-/* ---- Regions ---- */
 
 ImageLabel {{
     background-color: {t["well"]};
@@ -729,7 +720,6 @@ def themed_icon(name: str) -> QIcon:
 
 def _ui_font() -> QFont:
     font = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont)
-    # Windows 11's UI font; Windows 10 falls back to Segoe UI.
     if "Segoe UI Variable Text" in QFontDatabase.families():
         font.setFamily("Segoe UI Variable Text")
     font.setPointSize(9)
