@@ -151,7 +151,10 @@ For NVIDIA GPU acceleration, install the CUDA build of PyTorch **before** the
 requirements:
 
 ```bash
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126 # OPTIONAL | IF YOU'RE WANT TO USE CUDA
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+```
+
+```bash
 pip install -r requirements.txt
 ```
 
