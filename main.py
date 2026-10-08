@@ -1,5 +1,8 @@
+import multiprocessing
 import os
 import sys
+
+multiprocessing.freeze_support()
 
 if sys.platform == "darwin":
     os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
@@ -8,8 +11,10 @@ if sys.platform == "darwin":
 def _redirect_missing_std_streams() -> None:
     if sys.stdout is not None and sys.stderr is not None:
         return
-    base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
-    log_dir = os.path.join(base, "PBRCELAIN")
+    if sys.platform == "darwin":
+        log_dir = os.path.expanduser("~/Library/Logs/PBRCELAIN")
+    else:
+        log_dir = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "PBRCELAIN")
     try:
         os.makedirs(log_dir, exist_ok=True)
         log = open(os.path.join(log_dir, "pbrcelain.log"), "w", encoding="utf-8", buffering=1)

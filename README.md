@@ -140,6 +140,13 @@ by the height map. Camera, lighting and display settings live in a separate View
 Options panel. Double-click any map to inspect it in a 2×2 tiled view to check for
 seams.
 
+## Download
+
+Ready-to-run builds for **macOS (Apple Silicon)** and **Windows (64-bit)** are on the
+[Releases page](https://github.com/AyberkA0/pbrcelain-material-generator/releases/latest) —
+no Python needed. The Windows build runs depth models on the CPU; for NVIDIA GPU
+acceleration, install from source as below.
+
 ## Installation
 
 For NVIDIA GPU acceleration:

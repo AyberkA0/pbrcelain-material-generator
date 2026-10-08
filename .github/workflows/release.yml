@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            asset: PBRCELAIN-macOS-AppleSilicon.zip
+          - os: windows-latest
+            asset: PBRCELAIN-Windows-x64.zip
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            echo "PBRCELAIN_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "PBRCELAIN_VERSION=0.0.0" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install PyTorch (CPU build)
+        if: runner.os == 'Windows'
+        run: python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Build macOS icon
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p build
+          python -c "from build_macos_app import _build_icns; _build_icns('build/PBRCELAIN.icns')"
+
+      - name: Build app
+        run: python -m PyInstaller --noconfirm pbrcelain.spec
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: ditto -c -k --keepParent dist/PBRCELAIN.app "${{ matrix.asset }}"
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist/PBRCELAIN -DestinationPath "${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+          compression-level: 0
+
+  release:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: assets/*
+          body: |
+            ## Downloads
+
+            | Platform | File |
+            | --- | --- |
+            | macOS (Apple Silicon, M1 and later) | `PBRCELAIN-macOS-AppleSilicon.zip` |
+            | Windows 10/11 (64-bit) | `PBRCELAIN-Windows-x64.zip` |
+
+            No Python installation needed. Depth models are downloaded from Hugging Face
+            on first use (about 100 MB for Depth Anything V2 Small, up to a few GB for the
+            larger models) and cached for later runs.
+
+            **macOS:** unzip and move `PBRCELAIN.app` to Applications. The app is not
+            notarized, so on first launch right-click it and choose **Open**. If macOS says
+            the app is damaged, run `xattr -dr com.apple.quarantine /Applications/PBRCELAIN.app`
+            once. Depth estimation runs on the GPU (Metal/MPS).
+
+            **Windows:** unzip anywhere and run `PBRCELAIN.exe`. SmartScreen may ask for
+            confirmation (**More info → Run anyway**) since the build is unsigned. This build
+            uses the CPU version of PyTorch to stay within download limits; for NVIDIA GPU
+            acceleration, run from source with the CUDA build of PyTorch (see the README).

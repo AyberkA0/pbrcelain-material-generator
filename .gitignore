@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 height_maps/
 .DS_Store
+build/
+dist/
