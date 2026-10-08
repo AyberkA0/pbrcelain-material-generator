@@ -1,11 +1,3 @@
-"""Windows-only window integration: a title bar that follows the app's
-Light/Dark theme (with the Windows 11 Mica backdrop) and progress shown on
-the taskbar button.
-
-Everything here talks to Win32/DWM/COM through ctypes and silently does
-nothing where an API isn't available (older Windows versions, other
-platforms), so callers don't need their own guards.
-"""
 from __future__ import annotations
 
 import ctypes
@@ -33,8 +25,6 @@ def _set_dwm_int(hwnd: int, attribute: int, value: int) -> bool:
 
 
 def apply_title_bar_theme(widget, dark: bool) -> None:
-    """Dark or light title bar matching the app theme, Mica backdrop on
-    Windows 11 (visible in the title bar, the content stays opaque)."""
     if not _IS_WINDOWS:
         return
     try:
@@ -71,8 +61,6 @@ TBPF_INDETERMINATE = 0x1
 
 
 class TaskbarProgress:
-    """Progress on the window's taskbar button (ITaskbarList3)."""
-
     def __init__(self, widget):
         self._widget = widget
         self._taskbar = None
@@ -107,5 +95,4 @@ class TaskbarProgress:
             pass
 
     def set_busy(self, busy: bool) -> None:
-        """Indeterminate (pulsing) progress while busy, cleared otherwise."""
         self._set_state(TBPF_INDETERMINATE if busy else TBPF_NOPROGRESS)

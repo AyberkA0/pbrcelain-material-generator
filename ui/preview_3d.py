@@ -1,16 +1,3 @@
-"""Real-time material preview: a sphere/cube/plane rendered with a
-simplified Cook-Torrance PBR shader, fed by whatever Albedo/Normal/
-Roughness textures the project currently has.
-
-HDRI handling is a middle ground, not full image-based lighting (no
-cubemap convolution / specular pre-filtering): the selected equirect image
-is rendered as an actual visible backdrop behind the object (each pixel's
-view ray is reconstructed from the camera basis + FOV and used to sample
-the equirect texture directly, so it orbits correctly with the camera),
-and its average color separately tints the ambient lighting term. This
-keeps the widget fully independent of material-generation parameters; it
-only consumes final texture data and the values from PreviewPropertiesPanel.
-"""
 from __future__ import annotations
 
 import ctypes
@@ -124,8 +111,6 @@ uniform bool uSkyAmbient;
 
 const float PI = 3.14159265359;
 """ + SKY_GLSL + """
-// Diffuse irradiance of the procedural sky for a surface facing `n`
-// (linear space): ground below, sky above, sun glow towards the light.
 vec3 skyIrradiance(vec3 n, vec3 sunDir) {
     vec3 skyAvg = pow(mix(SKY_HORIZON, SKY_UPPER, 0.6), vec3(2.2));
     vec3 ground = pow(SKY_GROUND, vec3(2.2));
@@ -136,8 +121,6 @@ vec3 skyIrradiance(vec3 n, vec3 sunDir) {
 vec2 parallaxOcclusionMapping(vec2 texCoords, vec3 viewDirTS) {
     float maxLayers = float(max(uPOMMaxLayers, 4));
     float minLayers = max(4.0, maxLayers * 0.25);
-    // At grazing angles the parallax error is most visible, so spend more
-    // samples there.  The cap keeps the viewport predictable on integrated GPUs.
     float layerCount = mix(maxLayers, minLayers, abs(viewDirTS.z));
     float layerDepth = 1.0 / layerCount;
     vec2 deltaUV = (viewDirTS.xy / max(viewDirTS.z, 0.15))
@@ -145,9 +128,6 @@ vec2 parallaxOcclusionMapping(vec2 texCoords, vec3 viewDirTS) {
 
     float currentLayerDepth = 0.0;
     vec2 currentUV = texCoords;
-    // PBRCELAIN height maps use white = high and black = low.  Ray marching
-    // proceeds from the viewer into the surface, so it needs the inverse
-    // representation: black = deepest point to traverse.
     float sampledDepth = 1.0 - texture(uHeightTex, currentUV).r;
     if (sampledDepth <= 0.0) {
         return texCoords;
@@ -161,7 +141,6 @@ vec2 parallaxOcclusionMapping(vec2 texCoords, vec3 viewDirTS) {
         currentLayerDepth += layerDepth;
     }
 
-    // Interpolate across the final ray-march interval to avoid visible layer bands.
     vec2 previousUV = currentUV + deltaUV;
     float afterDepth = sampledDepth - currentLayerDepth;
     float beforeDepth = (1.0 - texture(uHeightTex, previousUV).r) - currentLayerDepth + layerDepth;
@@ -173,15 +152,7 @@ vec2 parallaxOcclusionMapping(vec2 texCoords, vec3 viewDirTS) {
 
 void main() {
     vec3 N = normalize(vNormal);
-    // The UV sphere's tangent degenerates at the poles (vTangent ~ 0 there);
-    // fall back to an arbitrary tangent orthogonal to N instead of
-    // normalizing a near-zero vector (which produces NaNs).
     vec3 rawT = vTangent - N * dot(vTangent, N);
-    // Pick a fallback axis guaranteed not to be parallel to N (a fixed axis
-    // like (0,0,1) can itself coincide with N somewhere on a full sphere,
-    // which would make this cross product degenerate too and normalize()
-    // would return NaN — exactly the kind of bright/broken pixel this
-    // fallback exists to avoid).
     vec3 fallbackAxis = abs(N.z) > 0.9 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 1.0);
     vec3 T = length(rawT) > 1e-4 ? normalize(rawT) : normalize(cross(fallbackAxis, N));
     vec3 B = cross(N, T);
@@ -233,9 +204,6 @@ void main() {
     float ao = uHasAO ? texture(uAOTex, uv).r : 1.0;
     vec3 color = (diffuse + specular) * uLightIntensity * NdotL;
     if (uSkyAmbient) {
-        // Image-based lighting from the procedural sky: diffuse irradiance
-        // plus a reflection of the sky that blurs towards the irradiance as
-        // roughness rises, weighted by a roughness-aware Fresnel term.
         vec3 Fenv = F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - NdotV, 5.0);
         vec3 R = reflect(-V, N);
         vec3 reflected = pow(proceduralSky(R, L, false), vec3(2.2));
@@ -323,7 +291,6 @@ void main() {
 
 
 def configure_surface_format() -> None:
-    """Request an OpenGL 3.3 core profile. Call before QApplication is created."""
     fmt = QSurfaceFormat()
     fmt.setVersion(3, 3)
     fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
@@ -334,7 +301,6 @@ def configure_surface_format() -> None:
 
 
 def _build_uv_sphere(rings: int = 40, segments: int = 64) -> tuple[np.ndarray, np.ndarray]:
-    """Returns (vertices, indices). Each vertex: pos(3) normal(3) uv(2) tangent(3) = 11 floats."""
     verts = []
     for r in range(rings + 1):
         theta = r * math.pi / rings
@@ -362,8 +328,6 @@ def _build_uv_sphere(rings: int = 40, segments: int = 64) -> tuple[np.ndarray, n
 
 
 def _build_cube(half_extent: float = 1.0) -> tuple[np.ndarray, np.ndarray]:
-    """Returns (vertices, indices) for a cube, 4 unshared verts per face so
-    each face keeps its own flat normal/tangent/UV (0..1 per face)."""
     s = half_extent
     faces = [
         ((1, 0, 0), (0, 0, -1), [(s, -s, s), (s, -s, -s), (s, s, -s), (s, s, s)]),
@@ -388,7 +352,6 @@ def _build_cube(half_extent: float = 1.0) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _build_plane(half_extent: float = 1.4) -> tuple[np.ndarray, np.ndarray]:
-    """Returns (vertices, indices) for a flat horizontal square (normal +Y)."""
     s = half_extent
     normal = (0.0, 1.0, 0.0)
     tangent = (1.0, 0.0, 0.0)
@@ -415,8 +378,6 @@ def _build_grid(size: float = 4.0, divisions: int = 8) -> np.ndarray:
 
 
 def _build_fullscreen_triangle() -> np.ndarray:
-    """One oversized triangle covering the whole clip-space viewport — the
-    standard fullscreen-pass trick, cheaper than a quad (no shared edge)."""
     return np.array([-1.0, -1.0, 3.0, -1.0, -1.0, 3.0], dtype=np.float32)
 
 
@@ -664,7 +625,6 @@ class Preview3DWidget(QOpenGLWidget):
 
     @staticmethod
     def _upload_mesh(verts: np.ndarray, indices: np.ndarray) -> tuple[int, int]:
-        """Uploads a pos(3)/normal(3)/uv(2)/tangent(3) mesh, returns (vao, index_count)."""
         vao = gl.glGenVertexArrays(1)
         gl.glBindVertexArray(vao)
         vbo = gl.glGenBuffers(1)
@@ -883,8 +843,6 @@ class Preview3DWidget(QOpenGLWidget):
         self._apply_drag(dx, dy, event.modifiers())
 
     def _apply_drag(self, dx: float, dy: float, modifiers) -> None:
-        """Orbit (plain), move the light (Shift) or pan the pivot (Ctrl/Cmd)
-        by a drag of (dx, dy) pixels — from the mouse or a trackpad swipe."""
         is_pan = bool(modifiers & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier))
 
         if is_pan:

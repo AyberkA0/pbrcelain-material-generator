@@ -1,4 +1,3 @@
-"""Photoshop-inspired dark theme constants and stylesheet for PBRCELAIN."""
 from __future__ import annotations
 
 COLOR_BG = "#282828"
@@ -526,7 +525,6 @@ PLATFORM_THEME = "mac" if IS_MAC else ("windows" if IS_WINDOWS else "legacy")
 
 
 def pick(mac, windows, legacy=None):
-    """Per-platform value (e.g. margins), `legacy` defaulting to `windows`."""
     if PLATFORM_THEME == "mac":
         return mac
     if PLATFORM_THEME == "windows":
@@ -556,10 +554,6 @@ def apply_app_theme(app) -> None:
 
 
 def legacy_style(widget, css: str, role: str | None = None) -> None:
-    """Style a widget that used to carry an inline stylesheet. The legacy
-    theme still applies `css`; the macOS and Windows themes style it from
-    their stylesheet instead (via `role`, if given), so it follows the
-    system Light/Dark appearance."""
     if PLATFORM_THEME == "legacy":
         widget.setStyleSheet(css)
     elif role is not None:

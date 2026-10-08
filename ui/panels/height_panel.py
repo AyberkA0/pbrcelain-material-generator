@@ -1,12 +1,3 @@
-"""Height map property panel: depth model choice, chunk estimation, and the
-detrend / normalize / smoothing settings from the original height-map
-pipeline (core.height_map), now living inside PBRCELAIN's dynamic panel area.
-
-Split into two independent pages:
-- Generate: depth model + chunk estimation (needs the model process).
-- Properties: detrend/invert/gamma/clip/bit depth — instant
-  post-processing on the already-produced raw depth data.
-"""
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal

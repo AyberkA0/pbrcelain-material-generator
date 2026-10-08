@@ -1,7 +1,3 @@
-"""Ambient Occlusion (AO) map panel — controls for deriving contact shadows
-from Height (ray-traced at real-world scale, or the classic approximation),
-plus the optional Curvature map export.
-"""
 from __future__ import annotations
 
 from PyQt6.QtWidgets import (

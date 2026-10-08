@@ -1,18 +1,3 @@
-"""Windows theme for PBRCELAIN, following the Windows 11 (Fluent) design.
-
-Fusion style plus this stylesheet: Segoe UI Variable, 4px control corners
-and 8px cards, buttons with the Fluent elevation border, text fields and
-number boxes with the accent underline on focus, accent-filled toggles,
-a selector bar (accent underline) for the Generate/Adjustment tabs, and
-Fluent menus and flyouts.
-
-It follows the system Light/Dark mode and accent color: the accent is
-mapped to the lighter tone Windows uses in Dark mode (with dark text on it)
-and the darker tone in Light mode (with white text), and the stylesheet is
-rebuilt whenever the system appearance changes.
-
-macOS has its own design (ui/mac_theme.py); this module is Windows-only.
-"""
 from __future__ import annotations
 
 import os
@@ -114,8 +99,6 @@ def _system_accent() -> QColor:
 
 
 def accent_colors(dark: bool) -> dict:
-    """Fluent accent tones derived from the system accent: Dark mode uses a
-    light tint with dark text on it, Light mode a deeper shade with white text."""
     base = _system_accent()
     h, s, _l, _a = base.getHslF()
     h = max(h, 0.0)
@@ -712,8 +695,6 @@ QWidget#StatusBarPanel {{
 
 
 def themed_icon(name: str) -> QIcon:
-    """Command-bar icon from ui/assets/windows/toolbar/<name>.svg, drawn in
-    the current theme's text color (the SVGs use currentColor)."""
     with open(os.path.join(_ASSETS, "toolbar", f"{name}.svg"), encoding="utf-8") as f:
         svg = f.read().replace("currentColor", tokens()["text"])
     pixmap = QPixmap()
@@ -730,9 +711,6 @@ def _ui_font() -> QFont:
 
 
 class _TitleBarFilter(QObject):
-    """Gives every window (main window and dialogs) a title bar matching the
-    theme as it is shown."""
-
     def eventFilter(self, obj, event):
         if (
             event.type() == QEvent.Type.Show

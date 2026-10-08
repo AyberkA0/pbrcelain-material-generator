@@ -1,19 +1,3 @@
-"""Build a PBRCELAIN.app launcher on macOS and associate .pcln files with it.
-
-The bundle is a thin launcher: it runs this project's main.py with the venv
-interpreter (or the one running this script), so the source stays where it
-is and edits take effect on the next launch. It gives the app its own Dock
-name and icon, a Launchpad/Spotlight entry, and makes double-clicking a
-.pcln file in Finder open it in PBRCELAIN.
-
-    venv/bin/python build_macos_app.py               # install to ~/Applications
-    venv/bin/python build_macos_app.py --dest DIR    # install somewhere else
-    venv/bin/python build_macos_app.py --uninstall   # remove it again
-
-Re-run after moving the project folder or recreating the venv, since the
-launcher stores absolute paths. Output is logged to
-~/Library/Logs/PBRCELAIN/pbrcelain.log.
-"""
 from __future__ import annotations
 
 import json
@@ -104,7 +88,6 @@ def _info_plist() -> dict:
 
 
 def _interpreter_info(python: str) -> dict:
-    """Ask `python` where its framework app binary and site-packages live."""
     code = (
         "import json, os, site, sys\n"
         "app = os.path.join(sys.base_prefix, 'Resources', 'Python.app', 'Contents', 'MacOS', 'Python')\n"

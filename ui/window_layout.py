@@ -1,5 +1,3 @@
-"""Main-window size and section split: fitted to the screen on first launch,
-then remembered between sessions (QSettings)."""
 from __future__ import annotations
 
 from PyQt6.QtCore import QByteArray, QSettings
@@ -10,8 +8,6 @@ _KEYS = ("window/geometry", "window/sidebarSplit", "window/previewSplit")
 
 def fit_to_screen(window: QMainWindow, sidebar_splitter: QSplitter, preview_splitter: QSplitter,
                   sidebar_ratio: float, sidebar_min: int, sidebar_max: int) -> None:
-    """Size the window and its sections relative to the screen rather than
-    fixed pixels, so small and large displays both get a sensible split."""
     screen = window.screen()
     if screen is None:
         return
@@ -26,7 +22,6 @@ def fit_to_screen(window: QMainWindow, sidebar_splitter: QSplitter, preview_spli
 
 
 def restore(window: QMainWindow, sidebar_splitter: QSplitter, preview_splitter: QSplitter) -> bool:
-    """Restore the last session's layout; False if there is none."""
     settings = QSettings()
     geometry, sidebar, preview = (settings.value(k) for k in _KEYS)
     if not isinstance(geometry, QByteArray) or not window.restoreGeometry(geometry):

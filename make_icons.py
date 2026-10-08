@@ -1,19 +1,3 @@
-"""Regenerate PBRCELAIN's app icons from the square source artwork.
-
-    python make_icons.py [source_image]      # default: ui/assets/app_icon_source.jpg
-
-The artwork is cut into a squircle (superellipse, the shape of macOS app
-icons) and written as:
-
-    ui/assets/app_icon.png       1024px, full-bleed squircle — window/taskbar icon
-    ui/assets/app_icon.ico       16–256px — Windows taskbar, shortcuts, .pcln files
-    ui/assets/mac/app_icon.png   1024px on Apple's icon grid (824px body, padding
-                                 and drop shadow) — Dock and the .app bundle
-
-The squircle follows Apple's icon grid so the icon sits at the same visual
-size as other apps in the Dock; build_macos_app.py turns the mac PNG into
-the .icns.
-"""
 from __future__ import annotations
 
 import os
@@ -33,7 +17,6 @@ MAC_BODY = 824
 
 
 def squircle_mask(size: int) -> Image.Image:
-    """Anti-aliased squircle alpha mask filling a size×size square."""
     big = size * SUPERSAMPLE
     coords = (np.arange(big, dtype=np.float64) + 0.5) / big * 2.0 - 1.0
     x = np.abs(coords)[None, :]
@@ -51,7 +34,6 @@ def squircle_icon(source: Image.Image, size: int) -> Image.Image:
 
 
 def mac_icon(source: Image.Image) -> Image.Image:
-    """Squircle on Apple's icon grid with the standard soft drop shadow."""
     body = squircle_icon(source, MAC_BODY)
     canvas = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     offset = (SIZE - MAC_BODY) // 2

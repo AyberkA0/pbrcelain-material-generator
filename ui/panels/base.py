@@ -1,10 +1,3 @@
-"""Base class for the dynamic, per-map-type property panels.
-
-Lays parameters out in a 3-column grid (wrapping to a new row every third
-item), wrapped in a scroll area so the panel stays usable at small window
-sizes. `add_wide()` breaks out of the 3-column grid for a full-width row
-(section groups, notes, buttons).
-"""
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
@@ -50,7 +43,6 @@ class PropertyPanel(QWidget):
         outer.addWidget(scroll)
 
     def add_param(self, label_text: str, widget: QWidget) -> QWidget:
-        """Place `widget` (with a label above it) in the next 3-column cell."""
         container = QWidget()
         v = QVBoxLayout(container)
         v.setContentsMargins(0, 0, 0, 0)
@@ -71,13 +63,11 @@ class PropertyPanel(QWidget):
         return container
 
     def add_section(self, title: str) -> None:
-        """Bold section-header label spanning the full width, starting a fresh row."""
         label = QLabel(title)
         label.setProperty("role", "panel-title")
         self.add_wide(label)
 
     def add_wide(self, widget: QWidget) -> None:
-        """Place `widget` spanning the full row width, starting a fresh row."""
         if self._col != 0:
             self._row += 1
             self._col = 0
@@ -95,23 +85,6 @@ class PropertyPanel(QWidget):
 
 
 class GeneratePropertiesContainer(QWidget):
-    """Splits a map type's parameters into two independent pages:
-
-    - Generate: parameters that require a real (possibly slow) generation
-      process — e.g. depth model / chunk settings. Bottom-bar "Generate
-      Map" / "Kill Process" apply here.
-    - Properties: parameters that only ever need an instant, local
-      recompute (no model) — post-processing on already-produced data.
-      Bottom-bar becomes "Save" / "Revert" here. Edits still preview live
-      (concrete panels emit `propertiesChanged`, debounced upstream into a
-      draft recompute), but only Save commits the draft as the map's
-      official/exported result — Revert discards it back to that.
-
-    Each page is its own `PropertyPanel` (3-column grid); concrete panels
-    build into `self.generate_page` / `self.properties_page` instead of
-    adding params to `self` directly.
-    """
-
     pageChanged = pyqtSignal(str)
     propertiesChanged = pyqtSignal()
 

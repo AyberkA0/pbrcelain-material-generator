@@ -1,7 +1,3 @@
-"""Preview-only display settings: camera, lighting, grid/rotate/wireframe,
-and environment. Fully independent from material-generation parameters —
-these only affect how the 3D preview is rendered, not the exported maps.
-"""
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal

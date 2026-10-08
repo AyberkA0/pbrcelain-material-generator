@@ -1,13 +1,3 @@
-"""Interactive dual-axis curve editor for the bowl/dome correction profile.
-
-Supports smooth Monotone Cubic Bezier curves for independent Horizontal (X)
-and Vertical (Y) lens curvature profiles.
-
-The curve maps normalized distance from image center (0 = center, 1 = edge)
-to a correction multiplier applied to the auto-fitted quadratic bowl/dome
-surface. A flat curve at 1.0 reproduces the auto-fitted behavior; dragging
-points scales the correction up or down per-axis.
-"""
 from __future__ import annotations
 
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
@@ -125,7 +115,6 @@ class CurveEditorWidget(QWidget):
         return [(p[0], p[1]) for p in self.points_y]
 
     def get_points(self) -> list[tuple[float, float]]:
-        """Legacy helper returning active points."""
         return [(p[0], p[1]) for p in self._active_points()]
 
     def reset_flat_active(self) -> None:
@@ -346,7 +335,6 @@ class CurveEditorWidget(QWidget):
             self.curveChanged.emit()
 
     def _delete_point(self, idx: int | None) -> None:
-        """Remove an interior control point (the two endpoints are fixed)."""
         pts = self._active_points()
         if idx is not None and idx != 0 and idx != len(pts) - 1:
             pts.pop(idx)
@@ -407,8 +395,6 @@ class CurveEditorWidget(QWidget):
 
 
 class CurveEditorDialog(QDialog):
-    """Dialog housing dual-axis Monotone Bezier curve controls with side-by-side live image preview."""
-
     liveCurvesChanged = pyqtSignal(list, list)
 
     def __init__(
@@ -666,9 +652,7 @@ class CurveEditorDialog(QDialog):
         self.editor.set_link_axes(checked)
 
     def result_curves(self) -> tuple[list[tuple[float, float]], list[tuple[float, float]]]:
-        """Return (curve_x, curve_y)."""
         return self.editor.get_points_x(), self.editor.get_points_y()
 
     def result_points(self) -> list[tuple[float, float]]:
-        """Legacy helper returning active or X curve points."""
         return self.editor.get_points_x()

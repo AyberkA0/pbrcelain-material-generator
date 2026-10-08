@@ -1,18 +1,3 @@
-"""macOS theme for PBRCELAIN.
-
-Qt's native macOS style ignores most of the QSS box model (it adds its own
-layout margins, centers QFormLayouts and shrinks spin-box arrows), which is
-what makes widgets drift and squeeze on a Mac. On macOS the app therefore
-runs on the Fusion style with this stylesheet, which follows the macOS
-design language: system font, rounded controls, segmented tabs and the
-user's system accent color.
-
-The theme follows the system appearance automatically: it is rebuilt from
-the light or dark token set whenever macOS switches between Light and Dark
-mode.
-
-Windows uses its own design (ui/windows_theme.py); this module is macOS-only.
-"""
 from __future__ import annotations
 
 import os
@@ -123,7 +108,6 @@ def tokens() -> dict:
 
 
 def accent_color() -> QColor:
-    """The user's system accent color (System Settings → Appearance)."""
     color = QGuiApplication.palette().color(QPalette.ColorRole.Accent)
     if not color.isValid() or color.alpha() == 0:
         color = QColor("#0a84ff")

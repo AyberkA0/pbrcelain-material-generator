@@ -1,8 +1,3 @@
-"""Height-map -> tangent-space normal-map conversion.
-
-Independent of any specific depth model or UI: operates on a plain float32
-HxW height array in [0, 1], as produced by core.height_map.build_height_map.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -31,10 +26,6 @@ _REFERENCE_DIM = 64.0
 
 
 def generate_normal_map(height: np.ndarray, options: NormalMapOptions | None = None) -> np.ndarray:
-    """Derive a tangent-space normal map from a [0,1] float32 height array.
-
-    Returns a float32 HxWx3 array in [0, 1] (ready for to_image/RGB encoding).
-    """
     options = options or NormalMapOptions()
     working = height.astype(np.float32)
     h, w = working.shape
@@ -106,7 +97,6 @@ def generate_normal_map(height: np.ndarray, options: NormalMapOptions | None = N
 
 
 def to_image(normal: np.ndarray) -> Image.Image:
-    """Convert a [0,1] float32 HxWx3 normal array into an 8-bit RGB PIL image."""
     arr = (np.clip(normal, 0.0, 1.0) * 255.0).round().astype(np.uint8)
     return Image.fromarray(arr, mode="RGB")
 

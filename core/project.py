@@ -1,24 +1,3 @@
-"""PBRCELAIN project file (.pcln): a zip container of metadata + images.
-
-Layout inside the zip:
-    project.json                  - ProjectData serialized to JSON
-    images/<slot>_source.png      - uploaded source image for a map slot (if any)
-    images/<slot>_cache.png       - last-generated output for a map slot (if any)
-    images/<slot>_cache.tiff      - same, for 32-bit float (mode "F") outputs,
-                                    which PNG cannot store
-    data/height_raw_depth.npy     - raw depth-model output for Height (if generated this session)
-    data/height_raw_guide.npy     - matching source-luminance guide array
-    data/height_raw_meta.json     - near_is_large flag for the raw depth array
-
-Keeping generated outputs (height/normal) cached alongside sources means
-reopening a project doesn't require re-running the (potentially very slow)
-depth-estimation model just to see the material again. The raw depth array
-is *also* kept (not just the final processed Height PNG) because Height's
-Properties (detrend/clip/gamma/...) are post-processing applied to that raw
-field — without it, editing Properties after reopening a project would have
-nothing to recompute from and could only re-process the already-processed
-PNG, giving different (wrong) results.
-"""
 from __future__ import annotations
 
 import json
@@ -41,8 +20,6 @@ PROJECT_FILE_FILTER = "PBRCELAIN Project (" + " ".join(f"*{ext}" for ext in PROJ
 
 
 def is_project_path(path: str) -> bool:
-    """True for files that can be opened as a project: .pcln, or a .zip with
-    the same layout (a .pcln is a zip archive)."""
     return path.lower().endswith(PROJECT_OPEN_EXTENSIONS)
 
 
@@ -75,7 +52,6 @@ def _slot_cache_name(map_type: MapType, float32: bool = False) -> str:
 
 
 def _encode_image(image: Image.Image) -> tuple[bytes, bool]:
-    """Serialize losslessly: PNG, or TIFF for 32-bit float images PNG can't hold."""
     buf = BytesIO()
     is_float = image.mode == "F"
     image.save(buf, format="TIFF" if is_float else "PNG")
@@ -93,7 +69,6 @@ def save_project(
     height_raw: Optional[DepthResult] = None,
     progress_cb: Optional[Callable[[str], None]] = None,
 ) -> None:
-    """Write `project` plus any provided images to `path` as a .pcln zip."""
     if progress_cb:
         progress_cb("Packaging project metadata…")
 
@@ -147,8 +122,6 @@ def load_project(
     path: str,
     progress_cb: Optional[Callable[[str], None]] = None,
 ) -> tuple[ProjectData, dict[MapType, Image.Image], dict[MapType, Image.Image], Optional[DepthResult]]:
-    """Read a .pcln (or .zip) project, returning (project metadata, source
-    images, cache images, raw Height depth result if one was saved)."""
     if progress_cb:
         progress_cb("Reading project archive…")
 

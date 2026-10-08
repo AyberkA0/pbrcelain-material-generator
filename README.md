@@ -8,6 +8,10 @@
   <strong>Turn a single photo into a clean, tileable height map — and a full PBR material around it.</strong>
 </p>
 
+<p align="center">
+  <a href="https://buymeabitcoffee.vercel.app/btc/bc1qhae9un6j8mel5xcrd4trajm65wfunlltkzelh7?identifier=Buy+Me+a+Coffee"><img src="https://img.shields.io/badge/☕%20Buy%20Me%20a%20Coffee-Donate-f7931a?style=for-the-badge&logo=bitcoin&logoColor=white" alt="Buy Me a Coffee"></a>
+</p>
+
 PBRCELAIN is a PyQt6 desktop app built around one job: extracting high-quality
 height maps from ordinary material photos (stone, brick, wood, tiles, fabric…)
 using state-of-the-art monocular depth estimation, then correcting the typical
@@ -36,6 +40,10 @@ Materials generated from single photos, previewed in the built-in 3D viewport
 <p align="center">
   <img src="docs/media/cracked-stone.gif" alt="Cracked stone ground material" width="520"><br>
   <em>Cracked stone</em>
+</p>
+
+<p align="center">
+  <sub>Source textures for the demos from <a href="https://polyhaven.com">Poly Haven</a> (CC0) — thank you!</sub>
 </p>
 
 ## Height map generation

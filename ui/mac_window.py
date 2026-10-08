@@ -1,10 +1,3 @@
-"""macOS-only window chrome for the main window.
-
-The main window has no visible title bar on macOS: content extends to the
-top edge, the traffic-light buttons float over the sidebar, and the menu bar
-at the top of the screen carries the commands. Widgets placed in the old
-title-bar row become move handles via `install_drag_area`.
-"""
 from __future__ import annotations
 
 from PyQt6.QtCore import QEvent, QObject, QPoint, Qt
@@ -20,8 +13,6 @@ def hide_title_bar(window: QMainWindow) -> None:
 
 
 class _DragArea(QObject):
-    """Moves the window when `widget` is dragged; double-click zooms it."""
-
     def __init__(self, widget: QWidget):
         super().__init__(widget)
         self._offset: QPoint | None = None

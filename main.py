@@ -1,12 +1,3 @@
-"""Entry point for PBRCELAIN — a PBR material authoring tool.
-
-Generates Albedo/Height/Normal/Roughness material maps from source images.
-Height estimation uses monocular depth models (Depth Anything V2 /
-Marigold); Normal is derived from Height; Roughness is a placeholder for
-now.
-
-Usage: python main.py [project.pcln | project.zip]
-"""
 import os
 import sys
 
@@ -15,9 +6,6 @@ if sys.platform == "darwin":
 
 
 def _redirect_missing_std_streams() -> None:
-    """Under pythonw.exe (e.g. launched by double-clicking a .pcln file) there
-    is no console, so sys.stdout/stderr are None and any library progress bar
-    (Hugging Face downloads, tqdm) would crash on write. Send them to a log file."""
     if sys.stdout is not None and sys.stderr is not None:
         return
     base = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
@@ -51,11 +39,6 @@ def _project_path_from_args(argv: list[str]) -> str | None:
 
 
 class _MacFileOpenHandler(QObject):
-    """macOS delivers files opened from Finder (double-click, "Open With",
-    dropping on the Dock icon) as QFileOpenEvents instead of argv. They can
-    arrive before the main window exists, so the first one is held until
-    `attach()` is called."""
-
     def __init__(self, app: QApplication):
         super().__init__(app)
         self._window = None
@@ -81,7 +64,6 @@ class _MacFileOpenHandler(QObject):
 
 
 def _set_app_icon(app: QApplication) -> None:
-    """Window/taskbar/Dock icon (regenerate the files with make_icons.py)."""
     from PyQt6.QtGui import QIcon
 
     assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "assets")

@@ -1,5 +1,3 @@
-"""Normal map property panel — controls for deriving a normal map from Height & Albedo.
-"""
 from __future__ import annotations
 
 from PyQt6.QtWidgets import (

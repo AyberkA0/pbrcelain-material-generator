@@ -1,9 +1,3 @@
-"""Roughness map property panel — derived from the local directional
-variance of the Normal map (see core/roughness_map.py for the method and
-its accuracy caveats). Always instant (no model), so — like Normal — every
-control lives on the Properties page; Generate just carries the readiness
-note.
-"""
 from __future__ import annotations
 
 import base64

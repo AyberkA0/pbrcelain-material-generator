@@ -1,6 +1,3 @@
-"""Let combo-box drop-down lists grow wider than their (possibly narrow)
-combo box, so long entries are never cut off. Installed app-wide by the
-macOS and Windows themes."""
 from __future__ import annotations
 
 from PyQt6.QtCore import QEvent, QObject

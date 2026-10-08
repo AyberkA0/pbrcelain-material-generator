@@ -1,10 +1,3 @@
-"""Main application window for PBRCELAIN.
-
-Project Section (left, gray): material slots bar + active map inspector +
-dynamic property panels + Generate All / Generate Map / Kill Process controls.
-Preview Section (right, purple): real-time 3D viewport preview + display-only
-preview settings with bi-directional synchronization.
-"""
 from __future__ import annotations
 
 import os
@@ -77,7 +70,6 @@ from ui.workers import (
 
 
 def pil_to_qpixmap(img: Image.Image) -> QPixmap:
-    """Convert a PIL Image to a QPixmap, properly handling RGB, 8-bit L, 16-bit I;16/I, and 32-bit float F."""
     if img.mode == "RGB":
         data = img.tobytes("raw", "RGB")
         qimg = QImage(data, img.width, img.height, img.width * 3, QImage.Format.Format_RGB888)
@@ -97,7 +89,6 @@ def pil_to_qpixmap(img: Image.Image) -> QPixmap:
 
 
 def _image_to_height_array(image: Image.Image) -> np.ndarray:
-    """Grayscale-normalize any uploaded/generated Height image to float32 [0,1]."""
     if image.mode in ("I;16", "I"):
         return np.asarray(image, dtype=np.float32) / 65535.0
     if image.mode == "F":
@@ -106,7 +97,6 @@ def _image_to_height_array(image: Image.Image) -> np.ndarray:
 
 
 def _image_to_normal_array(image: Image.Image) -> np.ndarray:
-    """Normalize any uploaded/generated Normal image to a [0,1] float32 HxWx3 array."""
     return np.asarray(image.convert("RGB"), dtype=np.float32) / 255.0
 
 
@@ -115,8 +105,6 @@ MAX_RECENT_PROJECTS = 8
 
 
 def _heading(text: str) -> str:
-    """Section heading text: title case in the macOS and Windows designs,
-    ALL CAPS in the legacy theme."""
     return text if PLATFORM_THEME == "legacy" else text.title()
 
 
@@ -197,9 +185,6 @@ class MainWindow(QMainWindow):
         add("Exit", self.close)
 
     def _build_mac_menu(self) -> None:
-        """macOS: no in-window toolbar — the commands live in the system menu
-        bar at the top of the screen (File menu), with the usual ⌘ shortcuts
-        and "…" on commands that open a dialog. Quit is in the app menu."""
         file_menu = self.menuBar().addMenu("File")
 
         def add(text: str, handler, shortcut: str) -> None:
@@ -224,8 +209,6 @@ class MainWindow(QMainWindow):
         file_menu.addAction(quit_action)
 
     def _build_windows_commands(self) -> None:
-        """Windows: no menu bar, just a Fluent command bar with icon + label
-        buttons. Open has a drop-down arrow listing recent projects."""
         from ui import windows_theme
 
         toolbar = QToolBar("Commands")
@@ -622,7 +605,6 @@ class MainWindow(QMainWindow):
             self._load_source_image(self.current_map_type, path)
 
     def _get_dependent_downstream_maps(self, map_type: MapType) -> list[MapType]:
-        """Return which existing maps depend on this map type."""
         if map_type == MapType.ALBEDO:
             candidates = (MapType.HEIGHT, MapType.NORMAL, MapType.ROUGHNESS, MapType.AO)
         elif map_type == MapType.HEIGHT:
@@ -770,14 +752,11 @@ class MainWindow(QMainWindow):
         )
 
     def _replace_estimator(self, family: str, variant: str, device: str) -> None:
-        """Free the previously loaded model before creating a new one, otherwise
-        switching models keeps both resident in (V)RAM until garbage collection."""
         if self.estimator is not None:
             self.estimator.unload()
         self.estimator = DepthEstimator(family, variant, device)
 
     def _on_model_settings_changed(self) -> None:
-        """Called when family, variant, or device combo changes in the UI."""
         family, variant = self.height_panel.selected_family_variant()
         device = self.height_panel.selected_device()
 
@@ -862,7 +841,6 @@ class MainWindow(QMainWindow):
         QMessageBox.critical(self, "Model load failed", msg)
 
     def _height_raw_source(self) -> tuple[Optional[np.ndarray], Optional[np.ndarray]]:
-        """Raw input for Height's Properties post-processing."""
         if self._height_depth_result is not None:
             return self._height_depth_result.depth, self._height_depth_result.guide
         src = self.source_images.get(MapType.HEIGHT)
@@ -871,7 +849,6 @@ class MainWindow(QMainWindow):
         return None, None
 
     def _roughness_underlays(self) -> tuple[Optional[Image.Image], Optional[Image.Image], Optional[Image.Image]]:
-        """Provides reference textures for the Roughness Imperfection Painter."""
         return (
             self._active_display_image(MapType.ALBEDO),
             self._active_display_image(MapType.NORMAL),
@@ -879,13 +856,11 @@ class MainWindow(QMainWindow):
         )
 
     def _height_seamless_orig_size(self) -> Optional[tuple[int, int]]:
-        """Original tile size if the current raw depth came from a seamless (padded) run."""
         if self._height_depth_result is None:
             return None
         return self._height_depth_result.seamless_orig_size
 
     def _apply_height_result(self, depth: np.ndarray, guide: Optional[np.ndarray]) -> np.ndarray:
-        """Recompute the committed Height map from a raw depth field."""
         options = self.height_panel.current_options()
         height_normed = build_height_map(depth, options, guide=guide)
 
@@ -1432,8 +1407,6 @@ class MainWindow(QMainWindow):
             self._kill_process()
 
     def _bake_all_pending_properties(self) -> None:
-        """Bake uncommitted property adjustments into full-resolution
-        generated images before saving or exporting, so user tweaks are never lost."""
         self._invalidate_properties_preview()
 
         height_panel_dict = self.height_panel.properties_to_dict()

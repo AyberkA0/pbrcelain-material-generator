@@ -1,4 +1,3 @@
-"""Modern modal progress/status dialog for long-running I/O and processing tasks."""
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
@@ -15,12 +14,6 @@ from PyQt6.QtWidgets import (
 from ui.theme import legacy_style
 
 class OperationProgressDialog(QDialog):
-    """Modern modal progress/status dialog for long-running I/O and processing tasks.
-
-    Prevents the main UI from freezing while providing visual feedback
-    with animated progress bars and live status messages.
-    """
-
     def __init__(
         self,
         title: str = "Please Wait",

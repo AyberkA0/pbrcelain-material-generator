@@ -1,8 +1,3 @@
-"""Interactive Surface Imperfection Painter with a smooth brush engine.
-
-Allows the user to paint custom surface wear, rust, cracks (rough/matte)
-or polished, wet, shiny areas directly over their texture maps.
-"""
 from __future__ import annotations
 
 from typing import Literal
@@ -46,14 +41,11 @@ BrushMode = Literal["rough", "gloss", "eraser"]
 
 
 def _shortcut_text(key: QKeySequence.StandardKey) -> str:
-    """Platform's own label for a standard shortcut: "Ctrl+Z" on Windows, "⌘Z" on macOS."""
     bindings = QKeySequence.keyBindings(key)
     return bindings[0].toString(QKeySequence.SequenceFormat.NativeText) if bindings else ""
 
 
 class ImperfectionCanvasWidget(QWidget):
-    """Interactive zoomable/pannable drawing canvas with a smooth radial gradient brush."""
-
     maskChanged = pyqtSignal()
 
     def __init__(self, width: int = 512, height: int = 512, parent=None):
@@ -144,7 +136,6 @@ class ImperfectionCanvasWidget(QWidget):
         self.update()
 
     def get_mask_array(self) -> np.ndarray | None:
-        """Return (H, W, 4) uint8 array [Target_R, G, B, Alpha], or None if fully empty."""
         rgba_img = self._paint_image.convertToFormat(QImage.Format.Format_RGBA8888)
         ptr = rgba_img.bits()
         ptr.setsize(rgba_img.sizeInBytes())
@@ -163,7 +154,6 @@ class ImperfectionCanvasWidget(QWidget):
         self.maskChanged.emit()
 
     def invert_roughness(self) -> None:
-        """Inverts the painted target roughness values while keeping the painted shape."""
         self._save_undo_state()
         arr = self.get_mask_array()
         if arr is not None:
@@ -198,7 +188,6 @@ class ImperfectionCanvasWidget(QWidget):
             self.maskChanged.emit()
 
     def reset_view(self) -> None:
-        """Fit canvas nicely inside widget."""
         w_avail = self.width() - 40
         h_avail = self.height() - 40
         if w_avail <= 0 or h_avail <= 0:
@@ -224,8 +213,6 @@ class ImperfectionCanvasWidget(QWidget):
         )
 
     def _paint_stamp(self, center: QPointF, painter: QPainter) -> None:
-        """Stamp a soft radial gradient brush stroke. With a pen, pressure
-        scales the size (down to 30%) and the flow."""
         radius = max(2.0, self.brush_size / 2.0 * (0.3 + 0.7 * self._pressure))
         flow = self.brush_flow * self._pressure
         grad = QRadialGradient(center, radius)
@@ -252,7 +239,6 @@ class ImperfectionCanvasWidget(QWidget):
         painter.drawEllipse(center, radius, radius)
 
     def _apply_brush_stroke(self, p1: QPointF, p2: QPointF) -> None:
-        """Interpolate smooth continuous stamps between p1 and p2."""
         dx = p2.x() - p1.x()
         dy = p2.y() - p1.y()
         dist = np.hypot(dx, dy)
@@ -356,9 +342,6 @@ class ImperfectionCanvasWidget(QWidget):
         self.update()
 
     def tabletEvent(self, event) -> None:
-        """Pen input (Wacom, Surface, Apple Pencil via Sidecar): pressure
-        drives brush size and flow, and the pen's eraser end erases. Accepting
-        the event stops Qt from also sending the equivalent mouse events."""
         etype = event.type()
         pos = event.position()
         self._cursor_canvas_pos = self._widget_to_canvas(pos)
@@ -442,8 +425,6 @@ class ImperfectionCanvasWidget(QWidget):
 
 
 class ImperfectionPainterDialog(QDialog):
-    """Dialog housing the Imperfection Painter, brush controls, and underlay selectors."""
-
     def __init__(
         self,
         mask: np.ndarray | None = None,
@@ -763,7 +744,6 @@ class ImperfectionPainterDialog(QDialog):
         self.canvas.set_active_underlay(key_map.get(text, "albedo"))
 
     def result_mask(self) -> np.ndarray | None:
-        """Return the painted mask array or None if empty."""
         return self.canvas.get_mask_array()
 
 

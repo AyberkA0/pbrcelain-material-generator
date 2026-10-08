@@ -1,8 +1,3 @@
-"""Map type catalog shared across the project model and UI.
-
-Kept as a plain enum + display metadata so adding a future PBR map
-(Metallic, AO, ...) is a single new entry here rather than a scattered change.
-"""
 from __future__ import annotations
 
 from enum import Enum

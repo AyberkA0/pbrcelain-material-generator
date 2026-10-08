@@ -1,4 +1,3 @@
-"""Background QThread workers so model loading / inference never block the UI."""
 from __future__ import annotations
 
 import numpy as np
@@ -32,8 +31,6 @@ class ModelLoadWorker(QThread):
 
 
 class InferenceWorker(QThread):
-    """Runs depth estimation for the project's single current Height source image."""
-
     result_ready = pyqtSignal(object)
     tile_progress = pyqtSignal(str)
     tile_preview = pyqtSignal(object, object)
@@ -83,13 +80,6 @@ class InferenceWorker(QThread):
 
 
 class PropertiesPreviewWorker(QThread):
-    """Build lightweight, disposable map previews away from the GUI thread.
-
-    Property edits must remain responsive even when the source texture is 4K
-    or larger.  This worker always operates on a max-1024px representation;
-    the full-resolution pipeline is deliberately reserved for Save.
-    """
-
     result_ready = pyqtSignal(int, str, object)
     failed = pyqtSignal(int, str)
 
@@ -136,14 +126,12 @@ class PropertiesPreviewWorker(QThread):
 
     @staticmethod
     def _image_array(image: Image.Image, mode: str) -> np.ndarray:
-        """Decode an image and limit it before any expensive local filters."""
         preview = image.convert(mode)
         preview.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
         return np.asarray(preview, dtype=np.float32) / 255.0
 
     @staticmethod
     def _height_array(image: Image.Image) -> np.ndarray:
-        """Preserve 16-bit and 32-bit float Height values while producing a compact preview."""
         if image.mode == "I;16":
             return downsample_for_preview(np.asarray(image, dtype=np.float32) / 65535.0)
         if image.mode == "F":

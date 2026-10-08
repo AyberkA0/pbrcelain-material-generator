@@ -1,8 +1,3 @@
-"""Interactive 2x2 Tiled Seamless Preview Dialog for PBRCELAIN.
-
-Allows inspecting edge and corner seamlessness of any map in 2x2 (or 3x3) repeating
-grids with smooth panning, cursor-anchored zooming, and optional seam guide lines.
-"""
 from __future__ import annotations
 
 import numpy as np
@@ -285,8 +280,6 @@ class InteractiveTiledCanvas(QWidget):
 
 
 class TiledPreviewDialog(QDialog):
-    """Photoshop-style dialog presenting 2x2 / 3x3 tiled seamless preview with zoom and pan."""
-
     def __init__(self, image: Image.Image | QPixmap | np.ndarray, map_name: str = "Active Map", parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"{map_name} - 2x2 Tiled Seamless Preview")

@@ -1,25 +1,3 @@
-"""Roughness map generation — derived from the local directional variance of
-the Normal map.
-
-Important caveat: this is
-NOT a measurement of true material roughness. Roughness is a microscopic
-surface-finish property; a Normal map only encodes texel-scale relief, a
-completely different physical scale. Polished, painted, coated or metallic
-surfaces can have arbitrary roughness independent of their geometry (a
-polished marble vein and a rough one look identical in Height/Normal), so
-this heuristic will be wrong for those. It's a reasonable starting point
-only for uncoated, "what you see is what you get" natural materials.
-
-The technique itself is a real, published one: Toksvig, "Mipmapping Normal
-Maps" (2004). Averaging unit normal vectors over a local footprint gives a
-vector whose length shrinks as those normals point in more different
-directions within that footprint — a flat/coherent area stays length 1,
-a jumbled/detailed one shrinks toward 0. That shrinkage is used here as a
-resolution-independent proxy for "how scattered reflections would be" at
-that scale (Toksvig used the same quantity to widen a specular lobe for
-mipmapped normal maps — LOD-based specular anti-aliasing, not raw
-material measurement).
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -97,9 +75,6 @@ class RoughnessMapOptions:
 
 
 def generate_roughness_map(normal: np.ndarray, options: RoughnessMapOptions | None = None) -> np.ndarray:
-    """Derive a single-channel roughness array in [0,1] from a [0,1] HxWx3
-    tangent-space normal array (as produced by core.normal_map.generate_normal_map).
-    """
     options = options or RoughnessMapOptions()
     h, w = normal.shape[:2]
 
@@ -175,7 +150,6 @@ def generate_roughness_map(normal: np.ndarray, options: RoughnessMapOptions | No
 
 
 def to_image(roughness: np.ndarray) -> Image.Image:
-    """Convert a [0,1] float32 roughness array into an 8-bit grayscale PIL image."""
     arr = (np.clip(roughness, 0.0, 1.0) * 255.0).round().astype(np.uint8)
     return Image.fromarray(arr, mode="L")
 

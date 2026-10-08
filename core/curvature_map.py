@@ -1,10 +1,3 @@
-"""Curvature map generation.
-
-Derived from the Height map: mid-grey is flat, brighter is convex (edges,
-ridges — where wear and chipping happen), darker is concave (cavities,
-cracks — where dirt collects). The usual input for edge-wear and dirt masks
-in Substance, Unreal and Unity material graphs.
-"""
 from __future__ import annotations
 
 import cv2
@@ -15,8 +8,6 @@ _SCALES = (0.002, 0.006, 0.018)
 
 
 def generate_curvature_map(height: np.ndarray) -> np.ndarray:
-    """Float32 HxW curvature in [0, 1] (0.5 = flat) from a [0, 1] height
-    array. The texture is treated as tiling, so edges wrap seamlessly."""
     h_arr = height.astype(np.float32)
     w = h_arr.shape[1]
     sigmas = [max(0.6, s * w) for s in _SCALES]

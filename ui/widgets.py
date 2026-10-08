@@ -1,4 +1,3 @@
-"""Small reusable widgets for the PBRCELAIN UI."""
 from __future__ import annotations
 
 from PyQt6.QtCore import QEvent, Qt, pyqtSignal
@@ -12,8 +11,6 @@ IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp")
 
 
 class SlotButton(QPushButton):
-    """Material slot button that emits doubleClicked on mouse double-click."""
-
     doubleClicked = pyqtSignal()
 
     def mouseDoubleClickEvent(self, event):
@@ -23,15 +20,6 @@ class SlotButton(QPushButton):
 
 
 class ImageLabel(QLabel):
-    """A QLabel that keeps a source QPixmap and rescales it to fit on resize.
-
-    Also accepts a single dropped image file, emitting `imageDropped` with
-    its path — used as the Selected Map Preview / upload target. A dropped
-    file that isn't a recognized image (e.g. a .pcln project) is forwarded
-    via `fileDropped` instead of being silently swallowed, so a parent
-    widget (the main window) gets a chance to handle it.
-    """
-
     imageDropped = pyqtSignal(str)
     fileDropped = pyqtSignal(str)
     doubleClicked = pyqtSignal()

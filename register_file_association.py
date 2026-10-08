@@ -1,16 +1,3 @@
-"""Associate .pcln project files with PBRCELAIN on Windows (current user only)
-and add a PBRCELAIN shortcut to the Start menu.
-
-Double-clicking a .pcln file then launches this project's venv interpreter
-(pythonw.exe, no console window) with main.py and the file path.
-
-    venv\\Scripts\\python register_file_association.py              # register
-    venv\\Scripts\\python register_file_association.py --unregister # remove
-
-Writes only under HKEY_CURRENT_USER\\Software\\Classes, so no admin rights
-are needed and other users are unaffected. Re-run after moving the project
-folder, since the registered command stores absolute paths.
-"""
 from __future__ import annotations
 
 import ctypes

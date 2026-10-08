@@ -29,7 +29,6 @@ def make_seamless_image(
     image: Image.Image | np.ndarray,
     overlap_pct: float = 10.0,
 ) -> np.ndarray:
-    """Make any arbitrary image seamlessly tileable using smoothstep border cross-blending."""
     if isinstance(image, Image.Image):
         arr = np.asarray(image.convert("RGB"), dtype=np.float32).copy()
     else:
@@ -64,7 +63,6 @@ def auto_white_balance(
     image: Image.Image | np.ndarray,
     strength: float = 0.7,
 ) -> np.ndarray:
-    """Neutralize color cast using the Gray-World illuminant normalization."""
     if isinstance(image, Image.Image):
         arr = np.asarray(image.convert("RGB"), dtype=np.float32)
     else:
@@ -91,7 +89,6 @@ def apply_albedo_adjustments(
     options: AlbedoAdjustOptions | None = None,
     rules: list[ColorShiftRule] | None = None,
 ) -> Image.Image:
-    """Apply complete Albedo Adjustment pipeline: White Balance -> Color Shifts -> Seamless Tiling."""
     options = options or AlbedoAdjustOptions()
     rules = rules or []
 

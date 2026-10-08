@@ -1,10 +1,3 @@
-"""Depth-estimation backends used to turn a material photo into a height map.
-
-Depth Anything V2 is loaded through Hugging Face `transformers` with the
-generic `AutoModelForDepthEstimation` API; Marigold goes through the
-`diffusers` MarigoldDepthPipeline. Adding a new checkpoint of an existing
-family is just a new entry in MODEL_CATALOG.
-"""
 from __future__ import annotations
 
 import time
@@ -36,7 +29,7 @@ IsCancelledCB = Optional[Callable[[], bool]]
 
 
 class InferenceCancelled(Exception):
-    """Raised (and caught by the caller) when a user-requested cancel lands mid-run."""
+    pass
 
 
 @dataclass
@@ -48,8 +41,6 @@ class DepthResult:
 
 
 class DepthEstimator:
-    """Loads one depth-estimation checkpoint and runs inference on PIL images."""
-
     def __init__(self, family: str, variant: str, device: str = "auto"):
         if family not in MODEL_CATALOG or variant not in MODEL_CATALOG[family]:
             raise ValueError(f"Unknown model {family}/{variant}")
@@ -97,7 +88,6 @@ class DepthEstimator:
         return device
 
     def key(self) -> str:
-        """Cache key identifying this exact loaded configuration."""
         return f"{self.checkpoint}|{self.device}"
 
     def load(self, progress_cb: ProgressCB = None) -> None:
@@ -282,16 +272,6 @@ class DepthEstimator:
         )
 
     def infer_batch(self, images: list[Image.Image]) -> list[np.ndarray]:
-        """Run several same-purpose images through a single forward pass.
-
-        Batching amortizes per-call overhead across images, which on a GPU
-        can be significantly faster than looping one-at-a-time (as
-        `infer_tiled` otherwise would for every chunk). Images may differ in
-        size - each is resized back to its own size individually after the
-        shared forward pass. Returns raw depth arrays (no guide/near_is_large,
-        since chunk tiles don't need those - only the full-image `infer` call
-        does).
-        """
         import torch
 
         if not self.is_loaded():
@@ -380,24 +360,6 @@ class DepthEstimator:
         is_cancelled: IsCancelledCB = None,
         batch_size: int = 1,
     ) -> "DepthResult":
-        """High-cost, high-detail alternative to `infer`.
-
-        A single forward pass squeezes the whole photo into the model's fixed
-        (small) input resolution, which is why fine per-object detail gets
-        smeared. This instead:
-          1. runs one full-image pass to get a trustworthy large-scale
-             ("global") relative depth field,
-          2. runs the model again on many overlapping crops, each much closer
-             to the model's native resolution so it can resolve fine detail,
-          3. calibrates each crop's arbitrary relative scale/offset to match
-             the global depth in that same region (least-squares fit),
-          4. blends the calibrated crops back together with linear cross-fade
-             feathering in the overlaps.
-
-        `partial_cb`, if given, is called periodically with the best
-        composite depth built so far (unprocessed regions fall back to the
-        global pass), so a caller can show a live-refining preview.
-        """
         return infer_tiled(
             self,
             image,
@@ -425,7 +387,6 @@ class DepthEstimator:
 
 
 def _tile_starts(total: int, tile: int, stride: int) -> list[int]:
-    """Top-left offsets of tiles covering [0, total) with a flush final tile."""
     if total <= tile:
         return [0]
     starts = list(range(0, total - tile + 1, stride))
@@ -435,13 +396,6 @@ def _tile_starts(total: int, tile: int, stride: int) -> list[int]:
 
 
 def _calibrate_to_reference(tile_depth: np.ndarray, reference: np.ndarray) -> np.ndarray:
-    """Least-squares scale+offset fit of `tile_depth` onto `reference`.
-
-    Relative depth models have an arbitrary per-image scale/shift, so a tile
-    run independently can't be pasted directly next to the global estimate
-    or its neighbours - it must first be recalibrated to agree with the
-    trusted low-frequency global depth covering the same pixels.
-    """
     x = tile_depth.ravel().astype(np.float64)
     y = reference.ravel().astype(np.float64)
     var_x = x.var()
@@ -456,13 +410,6 @@ def _calibrate_to_reference(tile_depth: np.ndarray, reference: np.ndarray) -> np
 
 
 def _axis_weights(length: int, taper_start: int, taper_end: int) -> np.ndarray:
-    """1D blend weights: 1.0 in the core, linearly ramping in shared overlaps.
-
-    `taper_start`/`taper_end` are 0 on edges that touch the image border
-    (nothing to blend with there) and the overlap width on edges shared with
-    a neighboring tile. Matching ramps on both sides of a shared overlap sum
-    to exactly 1 everywhere (a linear cross-fade partition of unity).
-    """
     w = np.ones(length, dtype=np.float64)
     if taper_start > 0:
         w[:taper_start] = np.arange(1, taper_start + 1) / (taper_start + 1)
