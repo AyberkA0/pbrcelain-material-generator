@@ -1,6 +1,12 @@
-# PBRCELAIN
+<p align="center">
+  <img src="ui/assets/app_icon.png" alt="PBRCELAIN logo" width="160">
+</p>
 
-**Turn a single photo into a clean, tileable height map — and a full PBR material around it.**
+<h1 align="center">PBRCELAIN</h1>
+
+<p align="center">
+  <strong>Turn a single photo into a clean, tileable height map — and a full PBR material around it.</strong>
+</p>
 
 PBRCELAIN is a PyQt6 desktop app built around one job: extracting high-quality
 height maps from ordinary material photos (stone, brick, wood, tiles, fabric…)
@@ -11,6 +17,26 @@ derived from the resulting height map, and everything can be inspected live on a
 
 Inspired by Substance 3D Sampler, Materialize and Quixel Mixer, but deliberately
 simpler: one material, one window.
+
+## Showcase
+
+Materials generated from single photos, previewed in the built-in 3D viewport
+(height-driven parallax, normal, roughness and AO under the default sky).
+
+<p align="center">
+  <img src="docs/media/tree-bark.gif" alt="Tree bark material in the 3D viewport" width="520"><br>
+  <em>Tree bark</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/rusty-metal.gif" alt="Rusty painted metal on a plane and a cube" width="520"><br>
+  <em>Rusty painted metal, on a plane and a cube</em>
+</p>
+
+<p align="center">
+  <img src="docs/media/cracked-stone.gif" alt="Cracked stone ground material" width="520"><br>
+  <em>Cracked stone</em>
+</p>
 
 ## Height map generation
 
@@ -164,8 +190,9 @@ project folder or recreate the venv; remove the app with `--uninstall`
 On macOS and Windows the interface follows the system Light/Dark appearance and
 accent color, in each platform's own design language: macOS controls with the
 menu bar at the top of the screen, and Windows 11 (Fluent) controls with a
-themed title bar, menu bar and command bar. Window size and section split are
-remembered between sessions, and **File → Open Recent** lists recent projects.
+themed title bar and an in-window command bar. Window size and section split are
+remembered between sessions, and recent projects are one click away (**File →
+Open Recent** on macOS, the arrow next to **Open** on Windows).
 
 Trackpads work in the 3D viewport, tiled preview and imperfection painter:
 pinch to zoom and swipe with two fingers to orbit (3D) or pan. The imperfection
@@ -184,9 +211,10 @@ re-run `build_macos_app.py` on macOS.
 
 Work is saved as a `.pcln` project: a zip archive holding the source images,
 generated maps, the raw depth data and every parameter. Reopening a project
-restores everything without re-running the depth model.
+restores everything without re-running the depth model. A `.zip` with the same
+layout (e.g. a renamed `.pcln`) opens as a project too.
 
-Commands (File menu, plus the toolbar on Windows): **New Project / Open Project /
-Open Recent / Save / Save As / Export Maps**.
+Commands (the File menu on macOS, the command bar on Windows): **New Project /
+Open Project / Open Recent / Save / Save As / Export Maps**.
 **Export Maps** writes every available map to a folder (PNG, or EXR for 32-bit
 height maps), plus `curvature.png` when a Height map exists.
