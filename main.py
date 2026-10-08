@@ -5,7 +5,7 @@ Height estimation uses monocular depth models (Depth Anything V2 /
 Marigold); Normal is derived from Height; Roughness is a placeholder for
 now.
 
-Usage: python main.py [project.pcln]
+Usage: python main.py [project.pcln | project.zip]
 """
 import os
 import sys
@@ -38,14 +38,14 @@ _redirect_missing_std_streams()
 from PyQt6.QtCore import QEvent, QObject, QTimer
 from PyQt6.QtWidgets import QApplication
 
-from core.project import PROJECT_EXTENSION
+from core.project import is_project_path
 from ui.preview_3d import configure_surface_format
 from ui.theme import apply_app_theme
 
 
 def _project_path_from_args(argv: list[str]) -> str | None:
     for arg in argv[1:]:
-        if arg.lower().endswith(PROJECT_EXTENSION) and os.path.isfile(arg):
+        if is_project_path(arg) and os.path.isfile(arg):
             return os.path.abspath(arg)
     return None
 
@@ -71,7 +71,7 @@ class _MacFileOpenHandler(QObject):
     def eventFilter(self, obj, event) -> bool:
         if event.type() == QEvent.Type.FileOpen:
             path = event.file()
-            if path and path.lower().endswith(PROJECT_EXTENSION):
+            if path and is_project_path(path):
                 if self._window is None:
                     self._pending = path
                 else:

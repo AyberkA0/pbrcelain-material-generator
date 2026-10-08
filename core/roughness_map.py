@@ -43,10 +43,16 @@ ROUGHNESS_PRESETS: dict[str, dict] = {
         "albedo_contrast": 0.25,
     },
     "Wood": {
-        "base_roughness": 0.50,
+        "base_roughness": 0.65,
         "strength": 0.8,
         "height_cavity": 0.20,
         "albedo_contrast": 0.40,
+    },
+    "Varnished Wood": {
+        "base_roughness": 0.35,
+        "strength": 0.5,
+        "height_cavity": 0.25,
+        "albedo_contrast": 0.20,
     },
     "Polished Metal": {
         "base_roughness": 0.15,

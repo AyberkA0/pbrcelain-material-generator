@@ -57,13 +57,7 @@ def make_seamless_image(
         arr[d, :] = (1.0 - wt) * s + wt * top_row
         arr[h - 1 - d, :] = (1.0 - wt) * s + wt * bot_row
 
-    out_arr = np.clip(arr, 0.0, 255.0).astype(np.uint8)
-    try:
-        from core.height_map import apply_seamless_corner_heal
-        out_arr = apply_seamless_corner_heal(out_arr, box_ratio=0.05)
-    except Exception:
-        pass
-    return out_arr
+    return np.clip(arr, 0.0, 255.0).astype(np.uint8)
 
 
 def auto_white_balance(

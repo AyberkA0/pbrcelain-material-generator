@@ -160,26 +160,6 @@ QToolTip {{
 }}
 
 
-QMenuBar {{
-    background-color: {t["window"]};
-    color: {t["text"]};
-    padding: 2px 4px;
-}}
-
-QMenuBar::item {{
-    background: transparent;
-    padding: 5px 10px;
-    border-radius: 4px;
-}}
-
-QMenuBar::item:selected {{
-    background-color: {t["subtle_hover"]};
-}}
-
-QMenuBar::item:pressed {{
-    background-color: {t["subtle_pressed"]};
-}}
-
 QMenu {{
     background-color: {t["popup"]};
     color: {t["text"]};
@@ -237,6 +217,29 @@ QToolButton {{
 
 QToolButton:hover {{
     background-color: {t["subtle_hover"]};
+}}
+
+QToolButton[popupMode="1"] {{
+    padding-right: 22px;
+}}
+
+QToolButton::menu-button {{
+    border: none;
+    border-left: 1px solid transparent;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    width: 18px;
+}}
+
+QToolButton::menu-button:hover {{
+    border-left-color: {t["card_border"]};
+    background-color: {t["subtle_hover"]};
+}}
+
+QToolButton::menu-arrow {{
+    image: url("{_ASSETS}/chevron-down-{scheme}.svg");
+    width: 10px;
+    height: 10px;
 }}
 
 QToolButton:pressed {{

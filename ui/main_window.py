@@ -14,7 +14,7 @@ from typing import Optional
 import numpy as np
 from PIL import Image
 from PyQt6.QtCore import QSettings, QSize, QTimer, Qt
-from PyQt6.QtGui import QAction, QImage, QPixmap
+from PyQt6.QtGui import QAction, QKeySequence, QImage, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QStackedWidget,
     QToolBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -44,7 +45,7 @@ from core.height_map import to_image as height_map_to_image
 from core.maps import MAP_TYPE_LABELS, MAP_TYPE_ORDER, MapType
 from core.normal_map import generate_normal_map
 from core.normal_map import to_image as normal_map_to_image
-from core.project import PROJECT_EXTENSION, MapSlotData, ProjectData
+from core.project import PROJECT_EXTENSION, PROJECT_FILE_FILTER, MapSlotData, ProjectData, is_project_path
 from core.roughness_map import generate_roughness_map
 from core.roughness_map import to_image as roughness_map_to_image
 from core.ao_map import generate_ao_map
@@ -223,11 +224,10 @@ class MainWindow(QMainWindow):
         file_menu.addAction(quit_action)
 
     def _build_windows_commands(self) -> None:
-        """Windows: a menu bar (File, with Open Recent and Exit) plus a Fluent
-        command bar with icon + label buttons for the common commands."""
+        """Windows: no menu bar, just a Fluent command bar with icon + label
+        buttons. Open has a drop-down arrow listing recent projects."""
         from ui import windows_theme
 
-        file_menu = self.menuBar().addMenu("&File")
         toolbar = QToolBar("Commands")
         toolbar.setMovable(False)
         toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
@@ -235,31 +235,26 @@ class MainWindow(QMainWindow):
         self.addToolBar(toolbar)
         iconed: list[tuple[QAction, str]] = []
 
-        def add(text: str, handler, shortcut: str, icon: Optional[str] = None, short_label: Optional[str] = None) -> QAction:
-            action = QAction(text, self)
+        def add(label: str, tooltip: str, handler, shortcut: str, icon: str) -> QAction:
+            action = QAction(label, self)
             action.setShortcut(shortcut)
+            action.setToolTip(f"{tooltip} ({action.shortcut().toString(QKeySequence.SequenceFormat.NativeText)})")
             action.triggered.connect(handler)
-            file_menu.addAction(action)
-            if icon:
-                action.setIconText(short_label or text.replace("&", "").rstrip("…"))
-                toolbar.addAction(action)
-                iconed.append((action, icon))
+            toolbar.addAction(action)
+            iconed.append((action, icon))
             return action
 
-        add("&New Project", self._new_project, "Ctrl+N", "new", "New")
-        add("&Open Project…", self._open_project, "Ctrl+O", "open", "Open")
-        file_menu.addMenu(self._build_recent_menu())
-        file_menu.addSeparator()
+        add("New", "New Project", self._new_project, "Ctrl+N", "new")
+        open_action = add("Open", "Open Project", self._open_project, "Ctrl+O", "open")
+        open_button = toolbar.widgetForAction(open_action)
+        if isinstance(open_button, QToolButton):
+            open_button.setMenu(self._build_recent_menu())
+            open_button.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         toolbar.addSeparator()
-        add("&Save", self._save_project, "Ctrl+S", "save")
-        add("Save &As…", self._save_project_as, "Ctrl+Shift+S", "save_as", "Save As")
-        file_menu.addSeparator()
+        add("Save", "Save Project", self._save_project, "Ctrl+S", "save")
+        add("Save As", "Save Project As", self._save_project_as, "Ctrl+Shift+S", "save_as")
         toolbar.addSeparator()
-        add("&Export Maps…", self._export_maps, "Ctrl+E", "export", "Export Maps")
-        file_menu.addSeparator()
-        exit_action = QAction("E&xit", self)
-        exit_action.triggered.connect(self.close)
-        file_menu.addAction(exit_action)
+        add("Export Maps", "Export Maps", self._export_maps, "Ctrl+E", "export")
 
         def refresh_icons() -> None:
             for action, name in iconed:
@@ -617,7 +612,7 @@ class MainWindow(QMainWindow):
         self._load_source_image(self.current_map_type, path)
 
     def _on_other_file_dropped(self, path: str) -> None:
-        if path.lower().endswith(PROJECT_EXTENSION):
+        if is_project_path(path):
             self._handle_dropped_project(path)
 
     def _upload_image(self) -> None:
@@ -1626,7 +1621,7 @@ class MainWindow(QMainWindow):
     def _open_project(self) -> None:
         if not self._confirm_discard_if_dirty():
             return
-        path, _ = QFileDialog.getOpenFileName(self, "Open Project", "", f"PBRCELAIN Project (*{PROJECT_EXTENSION})")
+        path, _ = QFileDialog.getOpenFileName(self, "Open Project", "", PROJECT_FILE_FILTER)
         if not path:
             return
         self._load_project_from_path(path)
@@ -1825,7 +1820,7 @@ class MainWindow(QMainWindow):
 
     def dragEnterEvent(self, event) -> None:
         for url in event.mimeData().urls():
-            if url.toLocalFile().lower().endswith(PROJECT_EXTENSION):
+            if is_project_path(url.toLocalFile()):
                 event.acceptProposedAction()
                 return
         super().dragEnterEvent(event)
@@ -1833,7 +1828,7 @@ class MainWindow(QMainWindow):
     def dropEvent(self, event) -> None:
         for url in event.mimeData().urls():
             path = url.toLocalFile()
-            if path.lower().endswith(PROJECT_EXTENSION):
+            if is_project_path(path):
                 event.acceptProposedAction()
                 self._handle_dropped_project(path)
                 return

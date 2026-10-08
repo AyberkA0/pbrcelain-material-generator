@@ -22,6 +22,7 @@ PNG, giving different (wrong) results.
 from __future__ import annotations
 
 import json
+import os
 import zipfile
 from dataclasses import dataclass, field
 from io import BytesIO
@@ -35,6 +36,14 @@ from core.maps import MapType
 
 PROJECT_VERSION = 1
 PROJECT_EXTENSION = ".pcln"
+PROJECT_OPEN_EXTENSIONS = (PROJECT_EXTENSION, ".zip")
+PROJECT_FILE_FILTER = "PBRCELAIN Project (" + " ".join(f"*{ext}" for ext in PROJECT_OPEN_EXTENSIONS) + ")"
+
+
+def is_project_path(path: str) -> bool:
+    """True for files that can be opened as a project: .pcln, or a .zip with
+    the same layout (a .pcln is a zip archive)."""
+    return path.lower().endswith(PROJECT_OPEN_EXTENSIONS)
 
 
 @dataclass
@@ -138,8 +147,8 @@ def load_project(
     path: str,
     progress_cb: Optional[Callable[[str], None]] = None,
 ) -> tuple[ProjectData, dict[MapType, Image.Image], dict[MapType, Image.Image], Optional[DepthResult]]:
-    """Read a .pcln file, returning (project metadata, source images, cache
-    images, raw Height depth result if one was saved)."""
+    """Read a .pcln (or .zip) project, returning (project metadata, source
+    images, cache images, raw Height depth result if one was saved)."""
     if progress_cb:
         progress_cb("Reading project archive…")
 
@@ -147,7 +156,13 @@ def load_project(
     cache_images: dict[MapType, Image.Image] = {}
     height_raw: Optional[DepthResult] = None
 
+    if not zipfile.is_zipfile(path):
+        raise ValueError(f"{os.path.basename(path)} is not a PBRCELAIN project archive.")
     with zipfile.ZipFile(path, "r") as zf:
+        if "project.json" not in zf.namelist():
+            raise ValueError(
+                f"{os.path.basename(path)} is not a PBRCELAIN project: the archive has no project.json."
+            )
         payload = json.loads(zf.read("project.json").decode("utf-8"))
         map_slots = {
             key: MapSlotData(

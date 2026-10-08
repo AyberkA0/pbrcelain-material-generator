@@ -27,23 +27,38 @@ from PyQt6.QtOpenGLWidgets import QOpenGLWidget
 from ui import trackpad
 
 SKY_GLSL = """
-const vec3 SKY_ZENITH = vec3(0.32, 0.47, 0.72);
-const vec3 SKY_HORIZON = vec3(0.80, 0.82, 0.86);
-const vec3 SKY_GROUND = vec3(0.37, 0.35, 0.34);
+const vec3 SKY_ZENITH = vec3(0.17, 0.24, 0.42);
+const vec3 SKY_UPPER = vec3(0.42, 0.50, 0.66);
+const vec3 SKY_HORIZON = vec3(0.90, 0.87, 0.82);
+const vec3 GROUND_HORIZON = vec3(0.50, 0.51, 0.55);
+const vec3 GROUND_NADIR = vec3(0.15, 0.16, 0.19);
+const vec3 SKY_GROUND = vec3(0.30, 0.31, 0.35);
+const vec3 SUN_COLOR = vec3(1.0, 0.90, 0.76);
 
-// Sky radiance in display (sRGB-ish) space. `sunDir` points towards the sun.
-vec3 proceduralSky(vec3 d, vec3 sunDir, bool withSunDisk) {
-    float y = d.y;
+vec3 proceduralSky(vec3 d, vec3 sunDir, bool backdrop) {
+    float y = clamp(d.y, -1.0, 1.0);
     vec3 c;
     if (y >= 0.0) {
-        c = mix(SKY_HORIZON, SKY_ZENITH, pow(clamp(y, 0.0, 1.0), 0.5));
+        float t = pow(y, 0.45);
+        c = mix(SKY_HORIZON, SKY_UPPER, smoothstep(0.0, 0.35, t));
+        c = mix(c, SKY_ZENITH, smoothstep(0.30, 1.0, t));
     } else {
-        c = mix(SKY_HORIZON * 0.85, SKY_GROUND, smoothstep(0.0, 0.12, -y));
+        c = mix(GROUND_HORIZON, GROUND_NADIR, pow(-y, 0.6));
+        if (backdrop) {
+            vec2 p = d.xz / max(-y, 1e-3) * 0.5;
+            vec2 f = abs(fract(p) - 0.5);
+            vec2 w = max(fwidth(p), vec2(1e-4));
+            vec2 lineDist = (0.5 - f) / w;
+            float line = 1.0 - clamp(min(lineDist.x, lineDist.y), 0.0, 1.0);
+            float fade = exp(-length(p) * 0.18) * smoothstep(0.0, 0.10, -y);
+            c += vec3(0.62, 0.72, 0.92) * line * fade * 0.12;
+        }
     }
+    c = mix(c, SKY_HORIZON, exp(-abs(y) * (y >= 0.0 ? 9.0 : 14.0)) * (y >= 0.0 ? 0.55 : 1.0));
     float s = max(dot(d, sunDir), 0.0);
-    c += vec3(1.0, 0.92, 0.78) * (pow(s, 48.0) * 0.35);
-    if (withSunDisk && y > -0.02) {
-        c += vec3(1.0, 0.96, 0.88) * smoothstep(0.9993, 0.9997, s) * 1.5;
+    c += SUN_COLOR * (pow(s, 24.0) * 0.18 + pow(s, 160.0) * 0.35);
+    if (backdrop && y > -0.02) {
+        c += vec3(1.0, 0.96, 0.90) * smoothstep(0.99955, 0.9998, s) * 1.6;
     }
     return c;
 }
@@ -112,10 +127,10 @@ const float PI = 3.14159265359;
 // Diffuse irradiance of the procedural sky for a surface facing `n`
 // (linear space): ground below, sky above, sun glow towards the light.
 vec3 skyIrradiance(vec3 n, vec3 sunDir) {
-    vec3 skyAvg = pow(mix(SKY_HORIZON, SKY_ZENITH, 0.55), vec3(2.2));
+    vec3 skyAvg = pow(mix(SKY_HORIZON, SKY_UPPER, 0.6), vec3(2.2));
     vec3 ground = pow(SKY_GROUND, vec3(2.2));
     vec3 c = mix(ground, skyAvg, clamp(n.y * 0.5 + 0.5, 0.0, 1.0));
-    return c + vec3(1.0, 0.92, 0.78) * 0.08 * max(dot(n, sunDir), 0.0);
+    return c + SUN_COLOR * 0.08 * max(dot(n, sunDir), 0.0);
 }
 
 vec2 parallaxOcclusionMapping(vec2 texCoords, vec3 viewDirTS) {
@@ -226,7 +241,8 @@ void main() {
         vec3 reflected = pow(proceduralSky(R, L, false), vec3(2.2));
         vec3 envSpec = mix(reflected, skyIrradiance(R, L), roughness);
         vec3 envDiffuse = (1.0 - Fenv) * albedo * skyIrradiance(N, L);
-        color += (envDiffuse + envSpec * Fenv) * uEnvIntensity * ao;
+        float gloss = pow(1.0 - roughness, 4.0);
+        color += (envDiffuse + envSpec * Fenv * gloss) * uEnvIntensity * ao;
     } else {
         color += albedo * uAmbientColor * uEnvIntensity * ao;
     }

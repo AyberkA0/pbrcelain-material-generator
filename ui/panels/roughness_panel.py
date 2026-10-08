@@ -271,7 +271,9 @@ class RoughnessPanel(GeneratePropertiesContainer):
         self.invert_checkbox.setChecked(data.get("invert", False))
         self.imperfection_strength_spin.setValue(data.get("imperfection_strength", 1.0))
 
+        self.preset_combo.blockSignals(True)
         self.preset_combo.setCurrentText(data.get("preset_name", "Custom"))
+        self.preset_combo.blockSignals(False)
         self.height_cavity_spin.setValue(data.get("height_cavity_factor", 0.0))
         self.albedo_contrast_spin.setValue(data.get("albedo_contrast_factor", 0.0))
 
