@@ -145,14 +145,13 @@ seams.
 ```bash
 python -m venv venv
 venv\Scripts\activate
-pip install -r requirements.txt
 ```
 
 For NVIDIA GPU acceleration, install the CUDA build of PyTorch **before** the
 requirements:
 
 ```bash
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126 # OPTIONAL | IF YOU'RE WANT TO USE CUDA
 pip install -r requirements.txt
 ```
 
